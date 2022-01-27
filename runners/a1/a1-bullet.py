@@ -1,3 +1,4 @@
+import os
 import time
 
 import numpy as np
@@ -30,7 +31,8 @@ markids = retarget_utils.prepare_markers(p, 81)
 
 motion_clip = []
 
-output_file = f"outputs/{animation.profile.name}.txt"
+output_path = "outputs"
+output_file = f"{animation.profile.name}.txt"
 
 timer = 0
 
@@ -54,9 +56,13 @@ try:
 
 
 except KeyboardInterrupt:
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
     np.savetxt(output_file, motion_clip, fmt="%.5f")
     p.disconnect()
 
 finally:
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
     np.savetxt(output_file, motion_clip, fmt="%.5f")
     p.disconnect()
