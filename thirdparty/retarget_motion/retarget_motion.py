@@ -200,7 +200,6 @@ def retarget_root_pose(ref_joint_pos, style=None):
     # root_pos = 0.5 * (pelvis_pos + neck_pos)
     root_pos = 0.25 * (left_shoulder_pos + right_shoulder_pos + left_hip_pos + right_hip_pos)
     root_pos[2] += 0.075
-    # print(root_pos)
     base_vec = np.array([trunk_len / 2, 0, 0])
     t_vec = rot_mat[:3, :3] @ base_vec
     if style[3] > 0:
@@ -381,8 +380,6 @@ def retarget_pose(robot, default_pose, ref_joint_pos, style=None):
     joint_pose = np.array(joint_pose)
 
     pose = np.concatenate([root_pos, root_rot, joint_pose])
-    # print(joint_pose)
-    # print(pose[:3])
 
     return pose
 
