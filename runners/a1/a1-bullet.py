@@ -11,7 +11,7 @@ from thirdparty.retarget_motion import retarget_motion as retarget_utils
 config = retarget_utils.config
 
 p = pybullet
-p.connect(p.GUI, options='--width=1920 --height=1080 --mp4="test.mp4" --mp4fps=60')
+p.connect(p.GUI, options="--width=1920 --height=1080")
 p.configureDebugVisualizer(p.COV_ENABLE_SINGLE_STEP_RENDERING, 1)
 pybullet.setAdditionalSearchPath(pd.getDataPath())
 pybullet.resetSimulation()
