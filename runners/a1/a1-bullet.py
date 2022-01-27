@@ -58,11 +58,11 @@ try:
 except KeyboardInterrupt:
     if not os.path.exists(output_path):
         os.makedirs(output_path)
-    np.savetxt(output_file, motion_clip, fmt="%.5f")
+    np.savetxt(os.path.join(output_path, output_file), motion_clip, fmt="%.5f")
     p.disconnect()
 
 finally:
     if not os.path.exists(output_path):
         os.makedirs(output_path)
-    np.savetxt(output_file, motion_clip, fmt="%.5f")
+    np.savetxt(os.path.join(output_path, output_file), motion_clip, fmt="%.5f")
     p.disconnect()
