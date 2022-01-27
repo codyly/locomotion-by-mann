@@ -1,0 +1,4 @@
+numpy==1.20.0rc2
+pybullet==3.2.1
+scipy==1.7.3
+torch==1.5.1
