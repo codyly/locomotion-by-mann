@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 from animation.kinematics import Trajectory, Point, PID
-from animation.controller import SimInputHandler, Controller
+from animation.controller import SimInputHandler, Controller, BulletInputHandler
 from animation import common as C
 from animation import utils as U
 from animation import profiles as P
@@ -10,8 +10,8 @@ from MANN.mann_network import MANN
 
 
 class Animation:
-    def __init__(self) -> None:
-        self.profile = P.trot
+    def __init__(self, profile=P.trot) -> None:
+        self.profile = profile
         self.root_point_id = 6
         self.input_num = 12
         self.output_num = 6
@@ -32,8 +32,13 @@ class Animation:
 
         self.pid = PID()
 
-        input_handler = SimInputHandler(profile=self.profile.inst, need_parse=True, looping=True)
-        self.controller = Controller(input_handler=input_handler)
+        if profile == 'manual':
+            # Animate based on Keyboard input from PyBullet
+            self.input_handler = BulletInputHandler()
+        else:
+            # Animate predefined instruction set
+            self.input_handler = SimInputHandler(profile=self.profile.inst, need_parse=True, looping=True)
+        self.controller = Controller(input_handler=self.input_handler)
 
         self.mann = MANN()
         self.mann.eval()
@@ -42,20 +47,20 @@ class Animation:
         base_input = np.zeros([self.input_num, self.trajectory_dim_input])
         bone_input = np.zeros([self.bone_num, self.bone_dim_input])
         cur_root = self.trajectory.points[self.root_point_id].transformation
-        cur_root[1, 3] = 0
+        cur_root[1, 3] = 0  # TODO why remove x position?
 
         for i in range(self.input_num):
             pos = U.mat_multi_pos(np.linalg.inv(cur_root), self.trajectory.points[i].get_position())
             dir = U.mat_multi_vec(np.linalg.inv(cur_root[:3, :3]), self.trajectory.points[i].get_direction())
             vel = U.mat_multi_vec(np.linalg.inv(cur_root[:3, :3]), self.trajectory.points[i].velocity)
-            base_input[i, 0] = pos[0]
-            base_input[i, 1] = pos[2]
+            base_input[i, 0] = pos[0]  #x
+            base_input[i, 1] = pos[2]  #z  (y is upper height direction)
             base_input[i, 2] = dir[0]
             base_input[i, 3] = dir[2]
             base_input[i, 4] = vel[0]
             base_input[i, 5] = vel[2]
             base_input[i, 6] = self.trajectory.points[i].speed
-            base_input[i, 7:] = self.trajectory.points[i].styles
+            base_input[i, 7:] = self.trajectory.points[i].styles  # one-hot 6D vector -> Total 13 D base_input
 
         prev_root = self.trajectory.points[self.root_point_id - 1].transformation
         prev_root[1, 3] = 0

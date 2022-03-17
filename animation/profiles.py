@@ -13,7 +13,7 @@ STD = "t"
 LIE = "l"
 DELIMITER = ","
 
-NUM_QUERIES = C.NUM_QUERIES
+NUM_QUERIES = C.NUM_QUERIES  # SYS_FREQ * DURAION = 60 * 10
 
 
 class Profile:
@@ -21,7 +21,7 @@ class Profile:
         self.name = name
         self.stages = stages
         self.ops = ops
-        self.inst = self.build()
+        self.inst = self.build()  # build instruction set for MANN using above 3 variables
 
     def build(self):
 
@@ -36,7 +36,7 @@ class Profile:
 
         return "".join(profile)
 
-
+# Profile does not have to go full(10s) duration. [0.1, 0.3, 0.1] -> Duration: [1s, 3s, 1s] = Queries: [60, 180, 60]
 trot = Profile(name="trot", stages=[0.1, 0.3, 0.1], ops=[NMV, FWD, NMV])
 
 acc_stop = Profile(name="acc_stop", stages=[0.1, 0.3, 0.3, 0.2, 0.1], ops=[NMV, FWD, JMP, BWD, NMV])

@@ -1,4 +1,5 @@
 from copy import copy
+from termios import N_MOUSE
 
 import numpy as np
 
@@ -39,7 +40,6 @@ class SimInputHandler:
                 self.profile.append([])
                 for ch in step:
                     self.profile[-1].append(ord(ch))
-
         self.looping = looping
         self.cur_id = 0
 
@@ -58,6 +58,30 @@ class SimInputHandler:
                     print("Query time is larger than profile length!")
 
                 yield [NOMOVE_KEY]
+
+class BulletInputHandler:
+    """User input for Bullet sim"""
+
+    def __init__(self) -> None:
+        self.profile = []
+        self.cur_id = 0
+
+    def input_keys(self, ch_list:list):
+        self.profile.append([])
+        for ch in ch_list:
+            self.profile[-1].append(ord(ch))
+
+    def get_keys(self):
+        while True:
+            while self.cur_id < len(self.profile):
+                yield self.profile[self.cur_id]
+                self.cur_id = self.cur_id + 1
+
+            if self.cur_id >= len(self.profile):
+                print("Query time is larger than profile length!")
+
+            yield [NOMOVE_KEY]
+
 
 
 class Style:
@@ -178,7 +202,7 @@ class Controller:
 
 
 def test():
-    input_handler = SimInputHandler(profile=P.trot, need_parse=True, looping=False)
+    input_handler = SimInputHandler(profile=P.trot.inst, need_parse=True, looping=False)
     controller = Controller(input_handler=input_handler)
 
     for _ in range(1):
