@@ -7,7 +7,8 @@ import pybullet_data as pd
 
 from animation import profiles as P
 from animation import common as C
-from animation.animation import Animation
+from animation.animation_time import Animation
+# from animation.animation import Animation
 from thirdparty.retarget_motion import retarget_motion as retarget_utils
 
 config = retarget_utils.config
@@ -49,26 +50,42 @@ def get_key_pressed(relevant=None):
             pressed_keys.append(key)
         return pressed_keys 
 
+import time
 try:
     while True:
-        pressed_keys = get_key_pressed()
-        print("pressed keys: ", pressed_keys)
-        animation.input_handler.input_keys([chr(ch) for ch in pressed_keys])
+        t_start = time.time()
+        if (timer % 1 <= 1 / C.SYS_FREQ):
+            animation.print_once = True
 
-        joint_pos_data = np.array([next(generator)])
-
+        pressed_keys = [chr(ch) for ch in get_key_pressed()]
+        # print("pressed keys: ", pressed_keys)
+        animation.input_handler.input_keys(pressed_keys)
+        
+        t_input = time.time()
+        frame = next(generator)
+        joint_pos_data = np.array([frame])
+        t_mann = time.time()
         pose = retarget_utils.retarget_motion_once(bullet_robot, joint_pos_data[0], style=animation.get_root_styles())
-
+        t_retarget = time.time()
         retarget_utils.update(joint_pos_data[0], markids, bullet_robot, p)
-
+        t_vis = time.time()
         # correct quaternion
         w = pose[6]
         pose[4:7] = pose[3:6]
         pose[3] = w
 
+        # for saving
         motion_clip.append(np.concatenate([[timer], pose]))
 
-        time.sleep(1 / C.SYS_FREQ)
+        if (timer % 1 <= 1 / C.SYS_FREQ):
+            print("[Timing] Total: %d out of %d"%((t_vis-t_start)*1000, 1000/C.SYS_FREQ))
+            print("Input: %d(ms), MANN: %d(ms), Retarget: %d(ms), Vis: %d(ms)"%(
+                (t_input-t_start)*1000, (t_mann-t_input)*1000,
+                (t_retarget-t_mann)*1000, (t_vis-t_retarget)*1000
+            ))
+        if (1/C.SYS_FREQ > (t_vis-t_start)):
+            print("updating:", 1/C.SYS_FREQ - (t_vis-t_start))
+            time.sleep(1 / C.SYS_FREQ - (t_vis-t_start))
         timer += 1 / C.SYS_FREQ
 
 

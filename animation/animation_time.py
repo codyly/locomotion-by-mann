@@ -264,19 +264,25 @@ class Animation:
             self.bone_fwd.append(U.mat_multi_vec(previous_root, bone_input[i, 3:6]))
             self.bone_up.append(U.mat_multi_vec(previous_root, bone_input[i, 6:9]))
             self.bone_vel.append(np.zeros(3))
-
+        import time
         while True:
+            t_start = time.time()
 
             self.controller.get_input()
+            t_input = time.time()
 
             self.predict_trajectory()
+            t_traj = time.time()
 
             input_norm = U.normalize(self.gen_input(), Xmean, Xstd).astype(np.float32)
             input_mann = torch.from_numpy(input_norm)
+            t_norm = time.time()
 
             output_mann = self.mann(input_mann)
+            t_mann = time.time()
             output_numpy = output_mann.to("cpu").detach().numpy()
             output = U.renormalize(output_numpy, Ymean, Ystd)
+            t_unnorm = time.time()
 
             # update past trajectory
             for i in range(self.root_point_id):
@@ -314,6 +320,8 @@ class Animation:
 
             self.next_transform_mat = self.trajectory.points[self.root_point_id].transformation
             self.next_transform_mat[1, 3] = 0
+
+            t_update_past_traj = time.time()
 
             # update future
             for i in range(self.root_point_id + 1, self.input_num):
@@ -398,7 +406,20 @@ class Animation:
                 self.bone_up[i] = up
                 self.bone_vel[i] = velocity
         
+            t_update_future_traj = time.time()
+
             start += self.bone_dim_output * self.bone_num
+            if self.print_once:
+                self.print_once = False
+                print("\n[MANN Timing] %d(ms)"%((t_update_future_traj-t_start)*1000))
+                print('input %d(ms) '% ((t_input-t_start)*1000),
+                        'set traj %d(ms) '%((t_traj-t_input)*1000),
+                        'normalize %d(ms) '%((t_norm-t_traj)*1000),
+                        'mann %d(ms) '%((t_mann-t_norm)*1000),
+                        'unnormalize %d(ms) '%((t_unnorm-t_mann)*1000),
+                        'update past traj: %d(ms) '%((t_update_past_traj-t_unnorm)*1000),
+                        'update future traj; %d(ms)'%((t_update_future_traj-t_update_past_traj)*1000)
+                )
 
             yield np.concatenate(self.bone_pos)
 

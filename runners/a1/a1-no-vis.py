@@ -36,9 +36,13 @@ timer = 0
 
 try:
     while timer < C.DURATION:
+        t_start = time.time()
+
         joint_pos_data = np.array([next(generator) for _ in range(1)])
+        t_mann = time.time()
 
         pose = retarget_utils.retarget_motion_once(bullet_robot, joint_pos_data[0], style=animation.get_root_styles())
+        t_retarget = time.time()
 
         # correct quaternion
         w = pose[6]
@@ -46,6 +50,12 @@ try:
         pose[3] = w
 
         motion_clip.append(np.concatenate([[timer], pose]))
+        if (timer % 1 <= 1 / C.SYS_FREQ):
+            print("[Timing (ms)] Total: %d out of %d"%((t_retarget-t_start)*1000, 1000/C.SYS_FREQ))
+            print("MANN: %d(ms), Retarget1: %d(ms)"%(
+                (t_mann-t_start)*1000,
+                (t_retarget-t_mann)*1000,
+            ))
 
         time.sleep(1 / C.SYS_FREQ)
         timer += 1 / C.SYS_FREQ
