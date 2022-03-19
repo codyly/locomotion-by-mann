@@ -9,7 +9,8 @@ from animation import profiles as P
 from animation import common as C
 from animation.animation_time import Animation
 # from animation.animation import Animation
-from thirdparty.retarget_motion import retarget_motion as retarget_utils
+# from thirdparty.retarget_motion import retarget_motion as retarget_utils
+from thirdparty.retarget_motion import retarget_motion_ori as retarget_utils
 
 config = retarget_utils.config
 
@@ -30,7 +31,7 @@ animation = Animation(profile='manual')
 
 generator = animation.gen_frame()
 
-markids = retarget_utils.prepare_markers(p, 81)
+markids = retarget_utils.prepare_markers(p, 81)  # create 81/3 = 27 markers
 
 motion_clip = []
 
@@ -65,7 +66,9 @@ try:
         frame = next(generator)
         joint_pos_data = np.array([frame])
         t_mann = time.time()
-        pose = retarget_utils.retarget_motion_once(bullet_robot, joint_pos_data[0], style=animation.get_root_styles())
+        # style: 6D vector representing style of movement
+        # pose = retarget_utils.retarget_motion_once(bullet_robot, joint_pos_data[0], style=animation.get_root_styles())
+        pose = retarget_utils.retarget_motion(bullet_robot, joint_pos_data)[0]
         t_retarget = time.time()
         retarget_utils.update(joint_pos_data[0], markids, bullet_robot, p)
         t_vis = time.time()
@@ -78,6 +81,7 @@ try:
         motion_clip.append(np.concatenate([[timer], pose]))
 
         if (timer % 1 <= 1 / C.SYS_FREQ):
+            print('style: ', animation.get_root_styles())
             print("[Timing] Total: %d out of %d"%((t_vis-t_start)*1000, 1000/C.SYS_FREQ))
             print("Input: %d(ms), MANN: %d(ms), Retarget: %d(ms), Vis: %d(ms)"%(
                 (t_input-t_start)*1000, (t_mann-t_input)*1000,

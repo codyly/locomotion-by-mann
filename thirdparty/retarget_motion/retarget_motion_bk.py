@@ -202,9 +202,9 @@ def retarget_root_pose(ref_joint_pos, style=None):
     root_pos[2] += 0.075
     base_vec = np.array([trunk_len / 2, 0, 0])
     t_vec = rot_mat[:3, :3] @ base_vec
-    if style is not None and style[3] > 0:
+    if style[3] > 0:
         root_pos[2] = max(np.abs(t_vec[2]) + 0.23, root_pos[2])
-    elif style is not None and style[2] > 0:
+    elif style[2] > 0:
         root_pos[2] = max(np.abs(t_vec[2]) + 0.2, root_pos[2] * (1.0 - 0.2 * style[2]))
     else:
         root_pos[2] = max(np.abs(t_vec[2]) + 0.2, root_pos[2])
@@ -214,50 +214,7 @@ def retarget_root_pose(ref_joint_pos, style=None):
 
     return root_pos, root_rot, forward_dir, rot_mat
 
-def retarget_pose_original(robot, default_pose, ref_joint_pos):  # real thing going on!
-  joint_lim_low, joint_lim_high = get_joint_limits(robot)  # get joint limit from pybullet's robot setting
 
-  root_pos, root_rot,_,_ = retarget_root_pose(ref_joint_pos)
-  root_pos += config.SIM_ROOT_OFFSET
-
-  pybullet.resetBasePositionAndOrientation(robot, root_pos, root_rot)
-
-  inv_init_rot = transformations.quaternion_inverse(config.INIT_ROT)
-  heading_rot = motion_util.calc_heading_rot(transformations.quaternion_multiply(root_rot, inv_init_rot))
-
-  tar_toe_pos = []
-  for i in range(len(REF_TOE_JOINT_IDS)):
-    ref_toe_id = REF_TOE_JOINT_IDS[i]
-    ref_hip_id = REF_HIP_JOINT_IDS[i]
-    sim_hip_id = config.SIM_HIP_JOINT_IDS[i]
-    toe_offset_local = config.SIM_TOE_OFFSET_LOCAL[i]
-
-    ref_toe_pos = ref_joint_pos[ref_toe_id]
-    ref_hip_pos = ref_joint_pos[ref_hip_id]
-
-    hip_link_state = pybullet.getLinkState(robot, sim_hip_id, computeForwardKinematics=True)
-    sim_hip_pos = np.array(hip_link_state[4])
-
-    toe_offset_world = pose3d.QuaternionRotatePoint(toe_offset_local, heading_rot)
-
-    ref_hip_toe_delta = ref_toe_pos - ref_hip_pos
-    sim_tar_toe_pos = sim_hip_pos + ref_hip_toe_delta
-    sim_tar_toe_pos[2] = ref_toe_pos[2]
-    sim_tar_toe_pos += toe_offset_world  # what's the exact equation for getting the target toe pos? No Optimization?
-
-    tar_toe_pos.append(sim_tar_toe_pos)
-  # Use PyBullet's IK to solve Robot IK... Ren's version seems different...
-  joint_pose = pybullet.calculateInverseKinematics2(robot, config.SIM_TOE_JOINT_IDS,
-                                                    tar_toe_pos,
-                                                    jointDamping=config.JOINT_DAMPING,
-                                                    lowerLimits=joint_lim_low,
-                                                    upperLimits=joint_lim_high,
-                                                    restPoses=default_pose)
-  joint_pose = np.array(joint_pose)
-
-  pose = np.concatenate([root_pos, root_rot, joint_pose])
-
-  return pose
 def retarget_pose(robot, default_pose, ref_joint_pos, style=None):
     joint_lim_low, joint_lim_high = get_joint_limits(robot)
 
@@ -292,7 +249,7 @@ def retarget_pose(robot, default_pose, ref_joint_pos, style=None):
 
         ref_hip_toe_delta = ref_toe_pos - ref_hip_pos
 
-        if style is not None and style[2] > 0:
+        if style[2] > 0:
             sim_tar_toe_pos = sim_hip_pos + (1 + 0.25 * style[2]) * ref_hip_toe_delta
             sim_tar_toe_pos[2] = max(0, min(sim_hip_pos[2] - 0.1, ref_toe_pos[2]))
         else:
@@ -409,8 +366,8 @@ def retarget_pose(robot, default_pose, ref_joint_pos, style=None):
         tar_toe_pos.append(sim_knee_pos)
 
     # print(joint_lim_high)
-    joint_lim_high = [0.40, 4.1, -0.91, 0.40, 4.1, -0.91, 0.40, 4.1, -0.91, 0.40, 4.1, -0.91]
-    joint_lim_low = [-0.40, -1.0, -1.9, -0.40, -1.0, -1.9, -0.40, -1.0, -1.9, -0.40, -1.0, -1.9]
+    # joint_lim_high = [0.40, 4.1, -0.91, 0.40, 4.1, -0.91, 0.40, 4.1, -0.91, 0.40, 4.1, -0.91]
+    # joint_lim_low = [-0.40, -1.0, -1.9, -0.40, -1.0, -1.9, -0.40, -1.0, -1.9, -0.40, -1.0, -1.9]
     joint_pose = pybullet.calculateInverseKinematics2(
         robot,
         tar_toe_ids,
@@ -468,15 +425,11 @@ def retarget_motion(robot, joint_pos_data):
 
 
 def retarget_motion_once(robot, joint_pos_data, style=None):
-    # single execution of loop from above original `retarget_motion` in jason peng's code. We additionally get "style" as input
     ref_joint_pos = joint_pos_data
     ref_joint_pos = np.reshape(ref_joint_pos, [-1, POS_SIZE])
     ref_joint_pos = process_ref_joint_pos_data(ref_joint_pos)
 
-    # curr_pose = retarget_pose(robot, config.DEFAULT_JOINT_POSE, ref_joint_pos, style)
-    # __import__('pdb').set_trace()
-    print(ref_joint_pos.shape)
-    curr_pose = retarget_pose_original(robot, config.DEFAULT_JOINT_POSE, ref_joint_pos)
+    curr_pose = retarget_pose(robot, config.DEFAULT_JOINT_POSE, ref_joint_pos, style)
     set_pose(robot, curr_pose)
 
     return curr_pose
