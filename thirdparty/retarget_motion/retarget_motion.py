@@ -283,7 +283,7 @@ def retarget_pose(robot, default_pose, ref_joint_pos, style=None):
         v3 = np.array([xx, yy, zz])
         v3 = v3 / np.linalg.norm(v3)
 
-        t = np.sqrt(max(0, 0.2 ** 2 - np.linalg.norm(sim_tar_toe_pos - sim_hip_pos) ** 2 / 4))
+        t = np.sqrt(max(0, 0.2**2 - np.linalg.norm(sim_tar_toe_pos - sim_hip_pos) ** 2 / 4))
 
         m = (sim_tar_toe_pos + sim_hip_pos) / 2
 
@@ -320,7 +320,7 @@ def retarget_pose(robot, default_pose, ref_joint_pos, style=None):
             v3 = np.array([xx, yy, zz])
             v3 = v3 / np.linalg.norm(v3)
 
-            t = np.sqrt(max(0, 0.2 ** 2 - np.linalg.norm(sim_tar_toe_pos - sim_hip_pos) ** 2 / 4))
+            t = np.sqrt(max(0, 0.2**2 - np.linalg.norm(sim_tar_toe_pos - sim_hip_pos) ** 2 / 4))
 
             m = (sim_tar_toe_pos + sim_hip_pos) / 2
 
@@ -354,7 +354,7 @@ def retarget_pose(robot, default_pose, ref_joint_pos, style=None):
                 v3 = np.array([xx, yy, zz])
                 v3 = v3 / np.linalg.norm(v3)
 
-                t = np.sqrt(max(0, 0.2 ** 2 - np.linalg.norm(sim_tar_toe_pos - sim_hip_pos) ** 2 / 4))
+                t = np.sqrt(max(0, 0.2**2 - np.linalg.norm(sim_tar_toe_pos - sim_hip_pos) ** 2 / 4))
 
                 m = (sim_tar_toe_pos + sim_hip_pos) / 2
 
@@ -483,4 +483,4 @@ def update(ref_joint_pos, marker_ids, robot, p):
     set_maker_pos(ref_joint_pos, marker_ids)
 
     update_camera(robot)
-    p.configureDebugVisualizer(p.COV_ENABLE_SINGLE_STEP_RENDERING, 1)
+    # p.configureDebugVisualizer(p.COV_ENABLE_SINGLE_STEP_RENDERING, 1)

@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 from animation.kinematics import Trajectory, Point, PID
-from animation.controller import SimInputHandler, Controller
+from animation.controller import SimInputHandler, Controller, KeyboardInputHandler
 from animation import common as C
 from animation import utils as U
 from animation import profiles as P
@@ -10,8 +10,8 @@ from MANN.mann_network import MANN
 
 
 class Animation:
-    def __init__(self) -> None:
-        self.profile = P.trot
+    def __init__(self, profile=P.trot) -> None:
+        self.profile = profile
         self.root_point_id = 6
         self.input_num = 12
         self.output_num = 6
@@ -32,7 +32,8 @@ class Animation:
 
         self.pid = PID()
 
-        input_handler = SimInputHandler(profile=self.profile.inst, need_parse=True, looping=True)
+        # input_handler = SimInputHandler(profile=self.profile.inst, need_parse=True, looping=True)
+        input_handler = KeyboardInputHandler()
         self.controller = Controller(input_handler=input_handler)
 
         self.mann = MANN()
@@ -44,10 +45,13 @@ class Animation:
         cur_root = self.trajectory.points[self.root_point_id].transformation
         cur_root[1, 3] = 0
 
+        inv_root_trans_mat = np.linalg.inv(cur_root)
+        inv_root_rot_mat = np.linalg.inv(cur_root[:3, :3])
+
         for i in range(self.input_num):
-            pos = U.mat_multi_pos(np.linalg.inv(cur_root), self.trajectory.points[i].get_position())
-            dir = U.mat_multi_vec(np.linalg.inv(cur_root[:3, :3]), self.trajectory.points[i].get_direction())
-            vel = U.mat_multi_vec(np.linalg.inv(cur_root[:3, :3]), self.trajectory.points[i].velocity)
+            pos = U.mat_multi_pos(inv_root_trans_mat, self.trajectory.points[i].get_position())
+            dir = U.mat_multi_vec(inv_root_rot_mat, self.trajectory.points[i].get_direction())
+            vel = U.mat_multi_vec(inv_root_rot_mat, self.trajectory.points[i].velocity)
             base_input[i, 0] = pos[0]
             base_input[i, 1] = pos[2]
             base_input[i, 2] = dir[0]
@@ -59,12 +63,14 @@ class Animation:
 
         prev_root = self.trajectory.points[self.root_point_id - 1].transformation
         prev_root[1, 3] = 0
+        inv_root_trans_mat = np.linalg.inv(prev_root)
+        inv_root_rot_mat = np.linalg.inv(prev_root[:3, :3])
 
         for i in range(self.bone_num):
-            pos = U.mat_multi_pos(np.linalg.inv(prev_root), self.bone_pos[i])
-            fwd = U.mat_multi_vec(np.linalg.inv(prev_root[:3, :3]), self.bone_fwd[i])
-            up = U.mat_multi_vec(np.linalg.inv(prev_root[:3, :3]), self.bone_up[i])
-            vel = U.mat_multi_vec(np.linalg.inv(prev_root[:3, :3]), self.bone_vel[i])
+            pos = U.mat_multi_pos(inv_root_trans_mat, self.bone_pos[i])
+            fwd = U.mat_multi_vec(inv_root_rot_mat, self.bone_fwd[i])
+            up = U.mat_multi_vec(inv_root_rot_mat, self.bone_up[i])
+            vel = U.mat_multi_vec(inv_root_rot_mat, self.bone_vel[i])
             bone_input[i, 0:3] = pos
             bone_input[i, 3:6] = fwd
             bone_input[i, 6:9] = up
