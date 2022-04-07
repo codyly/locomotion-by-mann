@@ -1,5 +1,10 @@
+import time
+import subprocess
 from copy import copy
+from collections import deque
+from threading import Thread
 
+import keyboard
 import numpy as np
 
 from animation import common as C
@@ -18,6 +23,21 @@ JUMP_KEY = ord("j")
 SIT_KEY = ord("i")
 STAND_KEY = ord("t")
 LIE_KEY = ord("l")
+
+LEGAL_KEYS = [
+    NOMOVE_KEY,
+    FORWARD_KEY,
+    BACKWARD_KEY,
+    MOVE_LEFT_KEY,
+    MOVE_RIGHT_KEY,
+    TURN_LEFT_KEY,
+    TURN_RIGHT_KEY,
+    JUMP_KEY,
+    SIT_KEY,
+    STAND_KEY,
+    LIE_KEY,
+]
+KEYBOARD_MAP = {chr(key): key for key in LEGAL_KEYS}
 
 NOMOVE_PROFILE = [[NOMOVE_KEY]]
 FORWARDING_PROFILE = [[FORWARD_KEY, TURN_LEFT_KEY]]
@@ -58,6 +78,36 @@ class SimInputHandler:
                     print("Query time is larger than profile length!")
 
                 yield [NOMOVE_KEY]
+
+
+class KeyboardInputHandler:
+    def __init__(self) -> None:
+        self.q = deque()
+        self.t = Thread(target=self.keyboardListener)
+        self.t.daemon = True
+        self.t.start()
+
+    def keyboardListener(self):
+        subprocess.run(["stty", "-echo"], stdout=subprocess.PIPE)
+
+        while True:
+            try:
+                read_key = keyboard.read_key()
+                legal_key = KEYBOARD_MAP.get(read_key, None)
+                if legal_key:
+                    self.q.append(legal_key)
+                time.sleep(1.0 / C.SYS_FREQ)
+            except:
+                break
+        subprocess.run(["stty", "echo"], stdout=subprocess.PIPE)
+
+    def get_keys(self):
+        while True:
+            if len(self.q) == 0:
+                yield [NOMOVE_KEY]
+
+            else:
+                yield [self.q.popleft()]
 
 
 class Style:
@@ -177,13 +227,21 @@ class Controller:
         return styles
 
 
-def test():
-    input_handler = SimInputHandler(profile=P.trot, need_parse=True, looping=False)
-    controller = Controller(input_handler=input_handler)
+# def test():
+#     input_handler = SimInputHandler(profile=P.acc_stop.inst, need_parse=True, looping=False)
+#     controller = Controller(input_handler=input_handler)
 
-    for _ in range(1):
-        controller.get_input()
-        print(controller.query_styles())
+#     for _ in range(1):
+#         controller.get_input()
+#         print(controller.query_styles())
+
+#     user_input_handler = KeyboardInputHandler()
+#     controller = Controller(input_handler=user_input_handler)
+
+#     for _ in range(600):
+#         controller.get_input()
+#         print(controller.query_styles())
+#         time.sleep(0.1)
 
 
 if __name__ == "__main__":

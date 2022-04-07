@@ -1,3 +1,4 @@
+import argparse
 import os
 import time
 
@@ -7,7 +8,12 @@ import pybullet_data as pd
 
 from animation import common as C
 from animation.animation import Animation
+from animation.profiles import ForwardProfile
 from thirdparty.retarget_motion import retarget_motion as retarget_utils
+
+parser = argparse.ArgumentParser(description="Generate forwarding gaits at customized speeds.")
+parser.add_argument("-v", "--velocity", type=float, help="target velocity")
+args = parser.parse_args()
 
 config = retarget_utils.config
 
@@ -23,7 +29,8 @@ bullet_robot = p.loadURDF(config.URDF_FILENAME, config.INIT_POS, config.INIT_ROT
 # Set robot to default pose to bias knees in the right direction.
 retarget_utils.set_pose(bullet_robot, np.concatenate([config.INIT_POS, config.INIT_ROT, config.DEFAULT_JOINT_POSE]))
 
-animation = Animation()
+profile = ForwardProfile(f"forward_profile", vel=args.velocity)
+animation = Animation(profile=profile)
 
 generator = animation.gen_frame()
 
@@ -57,17 +64,27 @@ try:
         time.sleep(1 / C.SYS_FREQ)
         timer += 1 / C.SYS_FREQ
 
-    print(f"Locomotion Speed: {d / C.DURATION:.2f} m/s")
+    speed = d / C.DURATION
+    print(f"Locomotion Speed: {speed:.2f} m/s")
+
+    int_part = int(speed)
+    flt_part = round((speed - int_part) * 1000)
+    int_part_input = int(args.velocity)
+    flt_part_input = round((args.velocity - int_part_input) * 1000)
+
+    output_file = f"{animation.profile.name}_v_{int_part_input}_{flt_part_input:03d}_sp_{int_part}_{flt_part:03d}.txt"
 
 
 except KeyboardInterrupt:
     if not os.path.exists(output_path):
         os.makedirs(output_path)
-    np.savetxt(os.path.join(output_path, output_file), motion_clip, fmt="%.5f")
+    if not os.path.exists(os.path.join(output_path, output_file)):
+        np.savetxt(os.path.join(output_path, output_file), motion_clip, fmt="%.5f")
     p.disconnect()
 
 finally:
     if not os.path.exists(output_path):
         os.makedirs(output_path)
-    np.savetxt(os.path.join(output_path, output_file), motion_clip, fmt="%.5f")
+    if not os.path.exists(os.path.join(output_path, output_file)):
+        np.savetxt(os.path.join(output_path, output_file), motion_clip, fmt="%.5f")
     p.disconnect()
