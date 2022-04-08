@@ -10,7 +10,7 @@ from MANN.mann_network import MANN
 
 
 class Animation:
-    def __init__(self, profile=P.trot) -> None:
+    def __init__(self, profile=P.trot, keyboard_input=False) -> None:
         self.profile = profile
         self.root_point_id = 6
         self.input_num = 12
@@ -31,9 +31,10 @@ class Animation:
         self.target_velocity = np.array([0, 0, 0])
 
         self.pid = PID()
-
-        # input_handler = SimInputHandler(profile=self.profile.inst, need_parse=True, looping=True)
-        input_handler = KeyboardInputHandler()
+        if not keyboard_input:
+            input_handler = SimInputHandler(profile=self.profile.inst, need_parse=True, looping=True)
+        else:
+            input_handler = KeyboardInputHandler()
         self.controller = Controller(input_handler=input_handler)
 
         self.mann = MANN()
