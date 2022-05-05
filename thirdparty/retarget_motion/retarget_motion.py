@@ -218,6 +218,55 @@ def retarget_root_pose(ref_joint_pos, style=None):
 def retarget_pose(robot, default_pose, ref_joint_pos, style=None):
     joint_lim_low, joint_lim_high = get_joint_limits(robot)
 
+    root_pos, root_rot, _, _ = retarget_root_pose(ref_joint_pos, style)
+    root_pos += config.SIM_ROOT_OFFSET
+
+    pybullet.resetBasePositionAndOrientation(robot, root_pos, root_rot)
+
+    inv_init_rot = transformations.quaternion_inverse(config.INIT_ROT)
+    heading_rot = motion_util.calc_heading_rot(transformations.quaternion_multiply(root_rot, inv_init_rot))
+
+    tar_toe_pos = []
+    for i in range(len(REF_TOE_JOINT_IDS)):
+        ref_toe_id = REF_TOE_JOINT_IDS[i]
+        ref_hip_id = REF_HIP_JOINT_IDS[i]
+        sim_hip_id = config.SIM_HIP_JOINT_IDS[i]
+        toe_offset_local = config.SIM_TOE_OFFSET_LOCAL[i]
+
+        ref_toe_pos = ref_joint_pos[ref_toe_id]
+        ref_hip_pos = ref_joint_pos[ref_hip_id]
+
+        hip_link_state = pybullet.getLinkState(robot, sim_hip_id, computeForwardKinematics=True)
+        sim_hip_pos = np.array(hip_link_state[4])
+
+        toe_offset_world = pose3d.QuaternionRotatePoint(toe_offset_local, heading_rot)
+
+        ref_hip_toe_delta = ref_toe_pos - ref_hip_pos
+        sim_tar_toe_pos = sim_hip_pos + ref_hip_toe_delta
+        sim_tar_toe_pos[2] = ref_toe_pos[2]
+        sim_tar_toe_pos += toe_offset_world
+
+        tar_toe_pos.append(sim_tar_toe_pos)
+
+    joint_pose = pybullet.calculateInverseKinematics2(
+        robot,
+        config.SIM_TOE_JOINT_IDS,
+        tar_toe_pos,
+        jointDamping=config.JOINT_DAMPING,
+        lowerLimits=joint_lim_low,
+        upperLimits=joint_lim_high,
+        restPoses=default_pose,
+    )
+    joint_pose = np.array(joint_pose)
+
+    pose = np.concatenate([root_pos, root_rot, joint_pose])
+
+    return pose
+
+
+def retarget_pose_style_sensitive(robot, default_pose, ref_joint_pos, style=None):
+    joint_lim_low, joint_lim_high = get_joint_limits(robot)
+
     root_pos, root_rot, forward_dir, rot_mat = retarget_root_pose(ref_joint_pos, style=style)
     root_pos += config.SIM_ROOT_OFFSET
 
@@ -384,10 +433,10 @@ def retarget_pose(robot, default_pose, ref_joint_pos, style=None):
     return pose
 
 
-def update_camera(robot):
+def update_camera(robot, force_dist=None):
     base_pos = np.array(pybullet.getBasePositionAndOrientation(robot)[0])
     [yaw, pitch, dist] = pybullet.getDebugVisualizerCamera()[8:11]
-    pybullet.resetDebugVisualizerCamera(dist, yaw, pitch, base_pos)
+    pybullet.resetDebugVisualizerCamera(dist if force_dist is None else force_dist, yaw, pitch, base_pos)
     return
 
 
@@ -423,12 +472,14 @@ def retarget_motion(robot, joint_pos_data):
     return new_frames
 
 
-def retarget_motion_once(robot, joint_pos_data, style=None):
+def retarget_motion_once(robot, joint_pos_data, style=None, style_sensitive=True):
     ref_joint_pos = joint_pos_data
     ref_joint_pos = np.reshape(ref_joint_pos, [-1, POS_SIZE])
     ref_joint_pos = process_ref_joint_pos_data(ref_joint_pos)
-
-    curr_pose = retarget_pose(robot, config.DEFAULT_JOINT_POSE, ref_joint_pos, style)
+    if style_sensitive:
+        curr_pose = retarget_pose_style_sensitive(robot, config.DEFAULT_JOINT_POSE, ref_joint_pos, style)
+    else:
+        curr_pose = retarget_pose(robot, config.DEFAULT_JOINT_POSE, ref_joint_pos, style)
     set_pose(robot, curr_pose)
 
     return curr_pose

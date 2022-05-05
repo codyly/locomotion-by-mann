@@ -182,7 +182,8 @@ trot = Profile(name="trot", stages=[0.1, 0.3, 0.1], ops=[NMV, FWD, NMV])
 full_speed_forwarding = Profile(name="full_speed_forwarding", stages=[0.01, 0.99], ops=[NMV, JMP])
 full_speed_moving_left = Profile(name="full_speed_moving_left", stages=[0.01, 0.99], ops=[NMV, MLF])
 
-acc_stop = Profile(name="acc_stop", stages=[0.1, 0.3, 0.3, 0.2, 0.1], ops=[NMV, FWD, JMP, BWD, NMV])
+acc_stop_slow = Profile(name="acc_stop", stages=[0.1, 0.3, 0.3, 0.2, 0.1], ops=[NMV, FWD, JMP, BWD, NMV])
+acc_stop = Profile(name="acc_stop", stages=[0.1, 0.3, 0.5], ops=[FWD, FWD, JMP])
 
 s_move = Profile(name="s_move", stages=[0.05, 0.1, 0.3, 0.3, 0.1, 0.05], ops=[NMV, FWD, MLF, MRT, FWD, NMV])
 

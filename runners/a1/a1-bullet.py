@@ -30,8 +30,8 @@ planeId = p.loadURDF("plane.urdf")
 # Set robot to default pose to bias knees in the right direction.
 retarget_utils.set_pose(bullet_robot, np.concatenate([config.INIT_POS, config.INIT_ROT, config.DEFAULT_JOINT_POSE]))
 
-animation = Animation(profile=P.TurningProfile("turning_right", 0))
-# animation = Animation(profile=P.s_move)
+# animation = Animation(profile=P.TurningProfile("turning_right", 0))
+animation = Animation(profile=P.acc_stop)
 
 generator = animation.gen_frame()
 
