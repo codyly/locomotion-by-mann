@@ -55,7 +55,7 @@ try:
         pose[6] = w
 
         retarget_utils.set_pose(bullet_robot, pose)
-        retarget_utils.update_camera(bullet_robot)
+        retarget_utils.update_camera(bullet_robot, force_dist=1)
 
         time.sleep(1 / C.SYS_FREQ)
         timer += 1 / C.SYS_FREQ
