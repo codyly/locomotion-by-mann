@@ -20,11 +20,15 @@ BLOCK_ORDER = {NMV: 0, FWD: 1, JMP: 2, MLF: 3, MRT: 4}
 
 
 class Profile:
-    def __init__(self, name, stages, ops) -> None:
+    def __init__(self, name, stages, ops, startup=False) -> None:
         self.name = name
         self.stages = stages
         self.ops = ops
         self.inst = self.build()
+        if startup:
+            n = round(1.0 / np.sum(self.stages))
+            startup_cmd = f"{FWD}{DELIMITER}" * C.SYS_FREQ
+            self.inst = startup_cmd + self.inst * n
 
     def build(self):
 
@@ -41,11 +45,15 @@ class Profile:
 
 
 class ForwardProfile(Profile):
-    def __init__(self, name, vel) -> None:
+    def __init__(self, name, vel, startup=False) -> None:
+        self.v = vel
         self.name = name
-        self.interp = ForwardGaitInterpolatior(velocity=vel)
+        self.interp = ForwardGaitInterpolator(velocity=vel)
         self.inst = self.averaging()
-        print(self.inst[:60])
+        if startup:
+            startup_cmd = f"{FWD}{DELIMITER}" * C.SYS_FREQ
+            self.inst = startup_cmd + self.inst
+        # print(self.inst[:60])
 
     def averaging(self) -> None:
         stage_lib = {self.interp.ops[i]: self.interp.stages[i] for i in range(len(self.interp.ops))}
@@ -55,7 +63,7 @@ class ForwardProfile(Profile):
         for cmd in cmd_lib[:-1]:
             num_cmd_lib[cmd] = round(C.NUM_QUERIES * stage_lib[cmd])
             num_sum += num_cmd_lib[cmd]
-        num_cmd_lib[cmd_lib[-1]] = 600 - num_sum
+        num_cmd_lib[cmd_lib[-1]] = C.NUM_QUERIES - num_sum
         inst = [[cmd_lib[0]] for _ in range(num_cmd_lib[cmd_lib[0]])]
         num_base = len(inst)
         base_interval = C.DURATION / num_base
@@ -83,7 +91,7 @@ class ForwardProfile(Profile):
         return "".join(inst_out)
 
 
-class ForwardGaitInterpolatior:
+class ForwardGaitInterpolator:
     MAX_PACE_VELOCITY = 0.86
     MAX_JUMP_VELOCITY = 1.82
 
@@ -178,7 +186,7 @@ class TurningGaitInterpolatior:
         self.stages = [0.5, 0.40, 0.1]
 
 
-trot = Profile(name="trot", stages=[0.1, 0.3, 0.1], ops=[NMV, FWD, NMV])
+trot = Profile(name="trot", stages=[1.0 / 60, 2.0 / 60], ops=[JMP, FWD])
 full_speed_forwarding = Profile(name="full_speed_forwarding", stages=[0.01, 0.99], ops=[NMV, JMP])
 full_speed_moving_left = Profile(name="full_speed_moving_left", stages=[0.01, 0.99], ops=[NMV, MLF])
 
@@ -202,3 +210,78 @@ lie_walk = Profile(
     stages=[0.05, 0.2, 0.1, 0.2, 0.15, 0.1, 0.1, 0.1],
     ops=[NMV, LIE, FWD, FWD, BWD, LIE, FWD, FWD],
 )
+
+dynamic_jumping_dummy = Profile(
+    name="dyn_jumping_dummy",
+    stages=[0.1, 0.1],
+    ops=[JMP, FWD],
+)
+
+
+def gen_bounding_profile():
+    jmp, fwd = distribution
+    j1 = int(jmp)
+    j2 = round((jmp - j1) * 1000)
+    f1 = int(fwd)
+    f2 = round((fwd - f1) * 1000)
+    return Profile(name=f"dyn_jumping_j_{j1}_{j2:03d}_f_{f1}_{f2:03d}", stages=[jmp, fwd], ops=[JMP, FWD], startup=True)
+
+
+def gen_bounding_profile():
+    n = round(0.9 / 3 * C.SYS_FREQ)
+    stages = [0.1]
+    ops = [JMP]
+    for _ in range(n):
+        stages.append(1.0 / C.SYS_FREQ)
+        stages.append(2.0 / C.SYS_FREQ)
+        ops.append(JMP)
+        ops.append(FWD)
+    return Profile(name=f"bounding", stages=stages, ops=ops, startup=True)
+
+
+def gen_dynamic_jumping_profile_trot(distribution):
+    jmp, trot = distribution
+    j1 = int(jmp)
+    j2 = round((jmp - j1) * 1000)
+    t1 = int(trot)
+    t2 = round((trot - t1) * 1000)
+    n = round(trot / 3 * C.SYS_FREQ)
+    stages = [jmp]
+    ops = [JMP]
+    for _ in range(n):
+        stages.append(1.0 / C.SYS_FREQ)
+        stages.append(2.0 / C.SYS_FREQ)
+        ops.append(JMP)
+        ops.append(FWD)
+
+    return Profile(name=f"dyn_jumping_j_{j1}_{j2:03d}_t_{t1}_{t2:03d}", stages=stages, ops=ops, startup=True)
+
+
+if __name__ == "__main__":
+    from matplotlib import pyplot as plt
+
+    sampled_v = np.linspace(0, 2, 101)
+    profiles = [ForwardProfile("", v) for v in sampled_v]
+
+    data = {" ": [], "w": [], "j": []}
+
+    for p in profiles:
+        print(f"v = {p.v:.3f}  inst. = [{p.inst[:100]}...]")
+        # print(p.interp.ops, p.interp.stages)
+        cmds = set(data.keys())
+        for i in range(len(p.interp.ops)):
+            data[p.interp.ops[i]].append(p.interp.stages[i] * 100)
+            cmds.discard(p.interp.ops[i])
+        for cmd in cmds:
+            data[cmd].append(0)
+
+    # plt.figure(figsize=(8, 6))
+    # names = {" ": "NoMove", "w": "Forward", "j": "Jump"}
+    # for cmd in data:
+    #     plt.plot(sampled_v, data[cmd], label=f"{names[cmd]}")
+
+    # plt.legend()
+    # plt.xlabel("v")
+    # plt.ylabel("proportion of commands / %")
+
+    # plt.savefig("outputs/v.png")

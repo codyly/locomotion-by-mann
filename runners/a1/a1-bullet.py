@@ -31,7 +31,7 @@ planeId = p.loadURDF("plane.urdf")
 retarget_utils.set_pose(bullet_robot, np.concatenate([config.INIT_POS, config.INIT_ROT, config.DEFAULT_JOINT_POSE]))
 
 # animation = Animation(profile=P.TurningProfile("turning_right", 0))
-animation = Animation(profile=P.acc_stop)
+animation = Animation(profile=P.gen_bounding_profile())
 
 generator = animation.gen_frame()
 
