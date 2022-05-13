@@ -1,18 +1,20 @@
 import argparse
 import os
-import time
 
 import numpy as np
 import pybullet
 import pybullet_data as pd
 
 from animation import common as C
+from animation import profiles as P
 from animation.animation import Animation
-from animation.profiles import ForwardProfile
+
+# from animation.profiles import dynamic_jumping_dummy
 from thirdparty.retarget_motion import retarget_motion as retarget_utils
 
 parser = argparse.ArgumentParser(description="Generate forwarding gaits at customized speeds.")
-parser.add_argument("-v", "--velocity", type=float, help="target velocity")
+parser.add_argument("-f", "--forward", type=float, help="forward distribution")
+parser.add_argument("-j", "--jumping", type=float, help="jumping distribution")
 parser.add_argument("-o", "--output", type=str, help="output path", default="outputs")
 parser.add_argument("-s", "--startup", type=bool, help="whether use startup second", default=True)
 args = parser.parse_args()
@@ -35,7 +37,7 @@ bullet_robot = p.loadURDF(config.URDF_FILENAME, config.INIT_POS, config.INIT_ROT
 # Set robot to default pose to bias knees in the right direction.
 retarget_utils.set_pose(bullet_robot, np.concatenate([config.INIT_POS, config.INIT_ROT, config.DEFAULT_JOINT_POSE]))
 
-profile = ForwardProfile(f"forward_profile", vel=args.velocity, startup=args.startup)
+profile = P.gen_dynamic_jumping_profile_trot((args.jumping, args.forward))
 animation = Animation(profile=profile)
 
 generator = animation.gen_frame()
@@ -84,9 +86,9 @@ try:
     flt_part = round((speed - int_part) * 1000)
     int_part_1 = int(speed1)
     flt_part_1 = round((speed1 - int_part_1) * 1000)
-    int_part_input = int(args.velocity)
-    flt_part_input = round((args.velocity - int_part_input) * 1000)
-    output_file = f"{animation.profile.name}_v_{int_part_input}_{flt_part_input:03d}_sp_{int_part}_{flt_part:03d}.txt"
+    int_part_input = int(args.jumping + args.forward)
+    flt_part_input = round((args.jumping + args.forward - int_part_input) * 1000)
+    output_file = f"{animation.profile.name}_sp_{int_part}_{flt_part:03d}.txt"
     if args.startup:
         output_file = "startup_" + output_file[:-4] + f"_sp1_{int_part_1}_{flt_part_1:03d}.txt"
 

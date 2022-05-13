@@ -11,6 +11,7 @@ from thirdparty.retarget_motion import retarget_motion as retarget_utils
 
 parser = argparse.ArgumentParser(description="Visualize generated motion clips")
 parser.add_argument("-f", "--file", type=str, help="motion clip file")
+parser.add_argument("-r", "--record", type=str, help="motion record video", default=None)
 args = parser.parse_args()
 
 if not os.path.exists(args.file):
@@ -25,17 +26,22 @@ config = retarget_utils.config
 generator = iter(motion_clip)
 
 p = pybullet
-p.connect(p.GUI, options="--width=800 --height=600")
+if args.record is not None:
+    p.connect(p.GUI, options=f'--width=800 --height=600 --mp4="{args.record}" --mp4fps=60')
+else:
+    p.connect(p.GUI, options="--width=800 --height=600")
+
 p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
 p.setAdditionalSearchPath(pd.getDataPath())
 p.resetSimulation()
 p.setGravity(0, 0, 0)
 
-bullet_robot = p.loadURDF(config.URDF_FILENAME, config.INIT_POS, config.INIT_ROT)
+init_pose = None
+# bullet_robot = p.loadURDF(config.URDF_FILENAME, config.INIT_POS, config.INIT_ROT)
 planeId = p.loadURDF("plane.urdf")
 
 # Set robot to default pose to bias knees in the right direction.
-retarget_utils.set_pose(bullet_robot, np.concatenate([config.INIT_POS, config.INIT_ROT, config.DEFAULT_JOINT_POSE]))
+# retarget_utils.set_pose(bullet_robot, np.concatenate([config.INIT_POS, config.INIT_ROT, config.DEFAULT_JOINT_POSE]))
 
 timer = 0
 
@@ -53,6 +59,10 @@ try:
         w = pose[3]
         pose[3:6] = pose[4:7]
         pose[6] = w
+
+        if init_pose is None:
+            init_pose = pose.copy()
+            bullet_robot = p.loadURDF(config.URDF_FILENAME, init_pose[:3], init_pose[3:7])
 
         retarget_utils.set_pose(bullet_robot, pose)
         retarget_utils.update_camera(bullet_robot, force_dist=1)

@@ -307,6 +307,8 @@ def retarget_pose_style_sensitive(robot, default_pose, ref_joint_pos, style=None
 
         sim_tar_toe_pos += toe_offset_world
 
+        sim_tar_toe_pos[2] = max(0.02, sim_tar_toe_pos[2])
+
         front = 1 if forward_dir.dot(sim_hip_pos - root_pos) > 0 else -1
         indicator = np.array(sim_hip_pos - (front * forward_dir * 0.267 / 2 + root_pos))
         flag = 1 if indicator.dot(toe_offsets) > 0 else -1

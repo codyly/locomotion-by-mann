@@ -64,8 +64,8 @@ try:
     joint_lim_low = [-0.40, -1.0, -1.9, -0.40, -1.0, -1.9, -0.40, -1.0, -1.9, -0.40, -1.0, -1.9]
     prev_toe_pose = None
 
-    stuck_toe_pose = np.zeros([4, 3])
-    stuck_state = np.zeros(4, dtype=int)
+    stuck_toe_pose = np.zeros([4])
+    stuck_state = 0
 
     while timer < duration:
         pose = next(generator)[1:]
@@ -96,76 +96,33 @@ try:
             # print("expected: ", np.round(toe_pose, 3))
             toe_height = toe_pose[:, 2]
 
+            on_ground = np.logical_and(
+                toe_height.max() < all_on_ground_avg_toe_height,
+                np.abs(toe_pose[:, 2] - prev_toe_pose[:, 2]).max() < 0.01,
+            )
+
             # slipped = np.logical_and(
             #     np.abs(toe_pose[:, 2] - prev_toe_pose[:, 2]) < 0.01, toe_pose[:, 2] < all_on_ground_avg_toe_height
             # )
-            slipped = prev_toe_pose[:, 2] < all_on_ground_avg_toe_height
-
-            slope = np.rad2deg(
-                np.arctan(
-                    np.abs(toe_pose[:, 2] - prev_toe_pose[:, 2])
-                    / (1e-10 + np.linalg.norm(toe_pose[:, :2] - prev_toe_pose[:, :2], axis=1))
-                )
-            )
-            slipped = np.logical_and(slipped, slope < 5.0)
-
-            vz = np.abs(toe_pose[:, 2] - prev_toe_pose[:, 2])
-            slipped = np.logical_and(slipped, vz < 0.01)
-
+            # slipped = np.logical_and(slipped, prev_toe_pose[:, 2] < all_on_ground_avg_toe_height)
             # slipped = np.logical_and(np.linalg.norm(toe_pose[:, :2] - prev_toe_pose[:, :2], axis=1) > 0.001, slipped)
-            # print(stuck_state)
-            # print(slipped)
-            # print(slope.round(3))
-            # print(np.abs(toe_pose[:, 2] - prev_toe_pose[:, 2]).round(3))
-            # print(toe_height, np.abs(toe_pose[:, 2] - prev_toe_pose[:, 2]).max())
+            # # print(stuck_state)
+            # # print(slipped)
+            # # print(toe_height, np.abs(toe_pose[:, 2] - prev_toe_pose[:, 2]).max())
 
-            # # optimistic estimation
             # start_slipped = np.logical_and(slipped, stuck_state == 0)
             # has_stucked = stuck_state > 0
+            # normal = np.logical_not(np.logical_or(start_slipped, has_stucked))
 
-            # pesimisive
-            start_slipped = slipped
-            has_stucked = np.logical_and(np.logical_not(slipped), stuck_state > 0)
+            # stuck_state[start_slipped] = 1
 
-            stuck_state[start_slipped] = 1
-
-            normal = np.logical_not(np.logical_or(start_slipped, has_stucked))
-
-            stuck_toe_pose[start_slipped] = prev_toe_pose[start_slipped]
-            stuck_toe_pose[normal] = toe_pose[normal]
+            # stuck_toe_pose[start_slipped] = prev_toe_pose[start_slipped]
+            # stuck_toe_pose[normal] = toe_pose[normal]
 
             # print("target: ", stuck_toe_pose.round(3))
 
-            stuck_ik_joint_angles = np.array(
-                pybullet.calculateInverseKinematics2(
-                    bullet_robot,
-                    toe_ids,
-                    stuck_toe_pose,
-                    jointDamping=config.JOINT_DAMPING,
-                    restPoses=config.DEFAULT_JOINT_POSE,
-                    lowerLimits=joint_lim_low,
-                    upperLimits=joint_lim_high,
-                    maxNumIterations=10,
-                )
-            ).reshape(4, 3)
-
-            cur_pose = pose[7:].reshape(4, 3)
-
-            stuck_ik_joint_angles[normal] = cur_pose[normal]
-            stuck_ik_joint_angles[has_stucked] = U.lerp(cur_pose[has_stucked], stuck_ik_joint_angles[has_stucked], 0.5)
-            stuck_state[has_stucked] -= 1
-
-            # print(pose[7:].round(2))
-            pose[7:] = stuck_ik_joint_angles.flatten()
-
-            retarget_utils.set_pose(bullet_robot, pose)
-            # retarget_utils.update_camera(bullet_robot, force_dist=1)
-
-            # if on_ground and stuck_state < 5:
-            #     stuck_toe_pose = toe_pose
-            #     stuck_state += 1
-            # elif on_ground and stuck_state >= 5:
-            #     stuck_ik_joint_angles = pybullet.calculateInverseKinematics2(
+            # stuck_ik_joint_angles = np.array(
+            #     pybullet.calculateInverseKinematics2(
             #         bullet_robot,
             #         toe_ids,
             #         stuck_toe_pose,
@@ -175,29 +132,57 @@ try:
             #         upperLimits=joint_lim_high,
             #         maxNumIterations=10,
             #     )
-            #     pose[7:] = stuck_ik_joint_angles
-            #     retarget_utils.set_pose(bullet_robot, pose)
-            #     retarget_utils.update_camera(bullet_robot, force_dist=1)
-            # elif stuck_state >= 5:
-            #     stuck_state = 0
-            #     stuck_ik_joint_angles = U.lerp(pose[7:], stuck_ik_joint_angles, 0.9)
-            #     pose[7:] = stuck_ik_joint_angles
-            #     stuck_recovery_iter = target_stuck_recovery_iter
-            #     retarget_utils.set_pose(bullet_robot, pose)
-            #     retarget_utils.update_camera(bullet_robot, force_dist=1)
-            # elif stuck_recovery_iter > 0:
-            #     stuck_ik_joint_angles = U.lerp(pose[7:], stuck_ik_joint_angles, 0.9)
-            #     pose[7:] = stuck_ik_joint_angles
-            #     stuck_recovery_iter -= 1
-            #     retarget_utils.set_pose(bullet_robot, pose)
-            #     retarget_utils.update_camera(bullet_robot, force_dist=1)
+            # ).reshape(4, 3)
+
+            # cur_pose = pose[7:].reshape(4, 3)
+
+            # stuck_ik_joint_angles[normal] = cur_pose[normal]
+            # stuck_ik_joint_angles[has_stucked] = U.lerp(cur_pose[has_stucked], stuck_ik_joint_angles[has_stucked], 0.5)
+            # stuck_state[has_stucked] -= 1
+
+            # # print(pose[7:].round(2))
+            # pose[7:] = stuck_ik_joint_angles.flatten()
+
+            # retarget_utils.set_pose(bullet_robot, pose)
+            # retarget_utils.update_camera(bullet_robot, force_dist=1)
+
+            if on_ground and stuck_state < 5:
+                stuck_toe_pose = toe_pose
+                stuck_state += 1
+            elif on_ground and stuck_state >= 5:
+                stuck_ik_joint_angles = pybullet.calculateInverseKinematics2(
+                    bullet_robot,
+                    toe_ids,
+                    stuck_toe_pose,
+                    jointDamping=config.JOINT_DAMPING,
+                    restPoses=config.DEFAULT_JOINT_POSE,
+                    lowerLimits=joint_lim_low,
+                    upperLimits=joint_lim_high,
+                    maxNumIterations=10,
+                )
+                pose[7:] = stuck_ik_joint_angles
+                retarget_utils.set_pose(bullet_robot, pose)
+                retarget_utils.update_camera(bullet_robot, force_dist=1)
+            elif stuck_state >= 5:
+                stuck_state = 0
+                stuck_ik_joint_angles = U.lerp(pose[7:], stuck_ik_joint_angles, 0.9)
+                pose[7:] = stuck_ik_joint_angles
+                stuck_recovery_iter = target_stuck_recovery_iter
+                retarget_utils.set_pose(bullet_robot, pose)
+                retarget_utils.update_camera(bullet_robot, force_dist=1)
+            elif stuck_recovery_iter > 0:
+                stuck_ik_joint_angles = U.lerp(pose[7:], stuck_ik_joint_angles, 0.9)
+                pose[7:] = stuck_ik_joint_angles
+                stuck_recovery_iter -= 1
+                retarget_utils.set_pose(bullet_robot, pose)
+                retarget_utils.update_camera(bullet_robot, force_dist=1)
 
             # prev_toe_pose = stuck_ik_joint_angles
         prev_toe_pose = np.array(
             [pybullet.getLinkState(bullet_robot, toe_id, computeForwardKinematics=True)[4] for toe_id in toe_ids]
         )
         # print("actual: ", np.round(prev_toe_pose, 3))
-        stuck_toe_pose = prev_toe_pose
+        # stuck_toe_pose = prev_toe_pose
 
         w = pose[6]
         pose[4:7] = pose[3:6]

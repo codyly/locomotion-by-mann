@@ -7,7 +7,7 @@ do
 	velocity=$(echo "$runs/50.0" | bc -l)
     cmd="python -m runners.a1.a1-forward -v $velocity"
     echo $cmd 
-    python -m runners.a1.a1-forward -v $velocity
+    python -m runners.a1.a1-forward -v $velocity -o $1 -s $2
     echo "finished "$runs"/100"
 done
 
