@@ -13,7 +13,7 @@ from thirdparty.retarget_motion import retarget_config_a1 as config
 
 parser = argparse.ArgumentParser(description="Visualize generated motion clips")
 parser.add_argument("-f", "--file", type=str, help="motion clip file")
-parser.add_argument("-t", "--threshold", type=float, help="heigh threshold for on-ground detection", default=0.033)
+parser.add_argument("-t", "--threshold", type=float, help="heigh threshold for on-ground detection", default=0.03)
 parser.add_argument("-o", "--output", type=str, help="output path for corrected motion clip file")
 args = parser.parse_args()
 
@@ -127,7 +127,7 @@ try:
             start_slipped = slipped
             has_stucked = np.logical_and(np.logical_not(slipped), stuck_state > 0)
 
-            stuck_state[start_slipped] = 1
+            stuck_state[start_slipped] = 2
 
             normal = np.logical_not(np.logical_or(start_slipped, has_stucked))
 

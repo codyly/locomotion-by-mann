@@ -1,3 +1,6 @@
+from collections import namedtuple
+from tracemalloc import start
+
 import numpy as np
 
 from animation import common as C
@@ -125,11 +128,14 @@ class ForwardGaitInterpolator:
 
 
 class TurningProfile(Profile):
-    def __init__(self, name, vel) -> None:
+    def __init__(self, name, coeff, direction="right", startup=False) -> None:
         self.name = name
-        self.interp = TurningGaitInterpolatior(velocity=vel, angle=90)
+        self.interp = TurningGaitInterpolatior(coeff=coeff, direction=direction)
         self.inst = self.averaging()
-        print(self.inst[:60])
+        if startup:
+            startup_cmd = f"{FWD}{DELIMITER}" * C.SYS_FREQ
+            self.inst = startup_cmd + self.inst
+        # print(self.inst[:60])
 
     def averaging(self) -> None:
         stage_lib = {self.interp.ops[i]: self.interp.stages[i] for i in range(len(self.interp.ops))}
@@ -171,7 +177,7 @@ class TurningGaitInterpolatior:
     MAX_PACE_VELOCITY = 0.86
     MAX_JUMP_VELOCITY = 1.82
 
-    def __init__(self, velocity, angle, direction="right", min_split=1.0 / C.SYS_FREQ) -> None:
+    def __init__(self, coeff, direction="right", min_split=1.0 / C.SYS_FREQ) -> None:
 
         self.stages = []
         self.ops = []
@@ -183,7 +189,10 @@ class TurningGaitInterpolatior:
 
         self.min_split = min_split
         self.ops = [NMV, FWD, self.turn_op]
-        self.stages = [0.5, 0.40, 0.1]
+        if coeff == 0:
+            self.stages = [0.5, 0.5 * (1 - coeff), 0.5 * coeff]
+
+        self.stages = [0.5, 0.5 * (1 - coeff), 0.5 * coeff]
 
 
 trot = Profile(name="trot", stages=[1.0 / 60, 2.0 / 60], ops=[JMP, FWD])
@@ -211,11 +220,19 @@ lie_walk = Profile(
     ops=[NMV, LIE, FWD, FWD, BWD, LIE, FWD, FWD],
 )
 
-dynamic_jumping_dummy = Profile(
-    name="dyn_jumping_dummy",
-    stages=[0.1, 0.1],
-    ops=[JMP, FWD],
-)
+dynamic_jumping_dummy = Profile(name="dyn_jumping_dummy", stages=[0.1, 0.05], ops=[JMP, FWD], startup=True)
+
+
+motion_wiki = {
+    "walk": ForwardProfile("walk", 0.5, startup=True),
+    "trot": ForwardProfile("trot", 1.28, startup=True),
+    "jump": Profile("dynamic_jumping", stages=[0.1, 0.05], ops=[JMP, FWD], startup=True),
+    "turn": TurningProfile("turn", 0.01, startup=True),
+    "sit": Profile("sit", [1.0], [SIT], startup=True),
+    "stand": Profile("stand", [1.0], [STD], startup=True),
+    "lie": Profile("lie", [1.0], [LIE], startup=True),
+    "turn-in-place": Profile("turn-in-place", [1.0], [TLF], startup=True),
+}
 
 
 def gen_bounding_profile():

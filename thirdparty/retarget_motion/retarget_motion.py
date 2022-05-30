@@ -340,50 +340,54 @@ def retarget_pose_style_sensitive(robot, default_pose, ref_joint_pos, style=None
 
         sim_knee_pos = m - np.sign(v3.dot(f)) * v3 * t
 
-        if style is not None and style[3:].sum() > 0:
+        if style is not None:
 
-            front = 1 if forward_dir.dot(sim_hip_pos - root_pos) > 0 else -1
-            indicator = np.array(sim_hip_pos - (front * forward_dir * 0.267 / 2 + root_pos))
-            flag = 1 if indicator.dot(toe_offsets) > 0 else -1
+            if style[4] > 0:  # standing
+                if style[4] > 0.5 and i % 2 != 0:  # rear legs
+                    sim_hip_pos[2] = max(sim_hip_pos[2], 0.1)
+                    sim_tar_toe_pos[2] = max(0, min(sim_tar_toe_pos[2], 0.05))
+                    sim_tar_toe_pos[:2] = sim_hip_pos[:2]
 
-            cache = np.array([sim_tar_toe_pos[0], sim_tar_toe_pos[1], sim_tar_toe_pos[2]])
-            sim_tar_toe_pos[:2] = sim_tar_toe_pos[:2] * max(style[1], style[2]) + (
-                sim_hip_pos[:2] + flag * toe_offsets[:2]
-            ) * (1 - max(style[1], style[2]))
+                    front = 1 if forward_dir.dot(sim_hip_pos - root_pos) > 0 else -1
+                    indicator = np.array(sim_hip_pos - (front * forward_dir * 0.267 / 2 + root_pos))
+                    flag = 1 if indicator.dot(toe_offsets) > 0 else -1
 
-            f = forward_dir
-            v2 = sim_tar_toe_pos - sim_hip_pos
-            v2 = v2 / np.linalg.norm(v2)
+                    f = forward_dir
+                    v2 = sim_tar_toe_pos - sim_hip_pos
+                    v2 = v2 / np.linalg.norm(v2)
 
-            y = 1
-            a = np.array([[f[0], f[2]], [v2[0], v2[2]]])
-            b = np.array([-f[1], -v2[1]])
+                    y = 1
+                    a = np.array([[f[0], f[2]], [v2[0], v2[2]]])
+                    b = np.array([-f[1], -v2[1]])
 
-            x, z = np.linalg.solve(a, b).tolist()
+                    x, z = np.linalg.solve(a, b).tolist()
 
-            v1 = np.array([x, y, z])
-            v1 = v1 / np.linalg.norm(v1)
+                    v1 = np.array([x, y, z])
+                    v1 = v1 / np.linalg.norm(v1)
 
-            xx = 1
-            a = np.array([[v1[1], v1[2]], [v2[1], v2[2]]])
-            b = np.array([-v1[0], -v2[0]])
-            yy, zz = np.linalg.solve(a, b).tolist()
-            v3 = np.array([xx, yy, zz])
-            v3 = v3 / np.linalg.norm(v3)
+                    xx = 1
+                    a = np.array([[v1[1], v1[2]], [v2[1], v2[2]]])
+                    b = np.array([-v1[0], -v2[0]])
+                    yy, zz = np.linalg.solve(a, b).tolist()
+                    v3 = np.array([xx, yy, zz])
+                    v3 = v3 / np.linalg.norm(v3)
 
-            t = np.sqrt(max(0, 0.2**2 - np.linalg.norm(sim_tar_toe_pos - sim_hip_pos) ** 2 / 4))
+                    t = np.sqrt(max(0, 0.2**2 - np.linalg.norm(sim_tar_toe_pos - sim_hip_pos) ** 2 / 4))
 
-            m = (sim_tar_toe_pos + sim_hip_pos) / 2
+                    m = (sim_tar_toe_pos + sim_hip_pos) / 2
 
-            sim_knee_pos = m - np.sign(v3.dot(f)) * v3 * t
+                    sim_knee_pos = m - np.sign(v3.dot(f)) * v3 * t
 
-            cnt = 1
+            elif style[3:].sum() > 0:
 
-            while sim_knee_pos[2] < 0:
-                cnt += 0.05
-                sim_tar_toe_pos[:2] = cache[:2] * max(style[1], style[2]) / cnt + (
+                front = 1 if forward_dir.dot(sim_hip_pos - root_pos) > 0 else -1
+                indicator = np.array(sim_hip_pos - (front * forward_dir * 0.267 / 2 + root_pos))
+                flag = 1 if indicator.dot(toe_offsets) > 0 else -1
+
+                cache = np.array([sim_tar_toe_pos[0], sim_tar_toe_pos[1], sim_tar_toe_pos[2]])
+                sim_tar_toe_pos[:2] = sim_tar_toe_pos[:2] * max(style[1], style[2]) + (
                     sim_hip_pos[:2] + flag * toe_offsets[:2]
-                ) * (1 - max(style[1], style[2]) / cnt)
+                ) * (1 - max(style[1], style[2]))
 
                 f = forward_dir
                 v2 = sim_tar_toe_pos - sim_hip_pos
@@ -410,6 +414,40 @@ def retarget_pose_style_sensitive(robot, default_pose, ref_joint_pos, style=None
                 m = (sim_tar_toe_pos + sim_hip_pos) / 2
 
                 sim_knee_pos = m - np.sign(v3.dot(f)) * v3 * t
+
+                cnt = 1
+
+                while sim_knee_pos[2] < 0.03 and cnt <= 1.5:
+                    cnt += 0.05
+                    sim_tar_toe_pos[:2] = cache[:2] * max(style[1], style[2]) / cnt + (
+                        sim_hip_pos[:2] + flag * toe_offsets[:2]
+                    ) * (1 - max(style[1], style[2]) / cnt)
+
+                    f = forward_dir
+                    v2 = sim_tar_toe_pos - sim_hip_pos
+                    v2 = v2 / np.linalg.norm(v2)
+
+                    y = 1
+                    a = np.array([[f[0], f[2]], [v2[0], v2[2]]])
+                    b = np.array([-f[1], -v2[1]])
+
+                    x, z = np.linalg.solve(a, b).tolist()
+
+                    v1 = np.array([x, y, z])
+                    v1 = v1 / np.linalg.norm(v1)
+
+                    xx = 1
+                    a = np.array([[v1[1], v1[2]], [v2[1], v2[2]]])
+                    b = np.array([-v1[0], -v2[0]])
+                    yy, zz = np.linalg.solve(a, b).tolist()
+                    v3 = np.array([xx, yy, zz])
+                    v3 = v3 / np.linalg.norm(v3)
+
+                    t = np.sqrt(max(0, 0.2**2 - np.linalg.norm(sim_tar_toe_pos - sim_hip_pos) ** 2 / 4))
+
+                    m = (sim_tar_toe_pos + sim_hip_pos) / 2
+
+                    sim_knee_pos = m - np.sign(v3.dot(f)) * v3 * t
 
         tar_toe_ids.append(sim_toe_id)
         tar_toe_pos.append(sim_tar_toe_pos)
