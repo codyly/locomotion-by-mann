@@ -23,7 +23,7 @@ BLOCK_ORDER = {NMV: 0, FWD: 1, JMP: 2, MLF: 3, MRT: 4}
 
 
 class Profile:
-    def __init__(self, name, stages, ops, startup=False) -> None:
+    def __init__(self, name="", stages=[], ops=[], startup=False) -> None:
         self.name = name
         self.stages = stages
         self.ops = ops
@@ -45,10 +45,14 @@ class Profile:
         profile.append(NMV)
 
         return "".join(profile)
+    
+    def __str__(self) -> str:
+        return self.name
 
 
 class ForwardProfile(Profile):
     def __init__(self, name, vel, startup=False) -> None:
+        super().__init__()
         self.v = vel
         self.name = name
         self.interp = ForwardGaitInterpolator(velocity=vel)
@@ -129,6 +133,7 @@ class ForwardGaitInterpolator:
 
 class TurningProfile(Profile):
     def __init__(self, name, coeff, direction="right", startup=False) -> None:
+        super().__init__()
         self.name = name
         self.interp = TurningGaitInterpolatior(coeff=coeff, direction=direction)
         self.inst = self.averaging()
@@ -195,7 +200,8 @@ class TurningGaitInterpolatior:
         self.stages = [0.5, 0.5 * (1 - coeff), 0.5 * coeff]
 
 
-trot = Profile(name="trot", stages=[1.0 / 60, 2.0 / 60], ops=[JMP, FWD])
+# trot = Profile(name="trot", stages=[1.0 / 60, 2.0 / 60], ops=[JMP, FWD])
+trot = Profile(name="trot", stages=[1.5 / 100, 1.5 / 100], ops=[JMP, FWD])
 full_speed_forwarding = Profile(name="full_speed_forwarding", stages=[0.01, 0.99], ops=[NMV, JMP])
 full_speed_moving_left = Profile(name="full_speed_moving_left", stages=[0.01, 0.99], ops=[NMV, MLF])
 
@@ -234,14 +240,16 @@ motion_wiki = {
     "turn-in-place": Profile("turn-in-place", [1.0], [TLF], startup=True),
 }
 
-
-def gen_bounding_profile():
-    jmp, fwd = distribution
-    j1 = int(jmp)
-    j2 = round((jmp - j1) * 1000)
-    f1 = int(fwd)
-    f2 = round((fwd - f1) * 1000)
-    return Profile(name=f"dyn_jumping_j_{j1}_{j2:03d}_f_{f1}_{f2:03d}", stages=[jmp, fwd], ops=[JMP, FWD], startup=True)
+motion_wiki_no_startup = {
+    "walk": ForwardProfile("walk", 0.5, startup=False),
+    "trot": ForwardProfile("trot", 1.28, startup=False),
+    "jump": Profile("dynamic_jumping", stages=[0.1, 0.05], ops=[JMP, FWD], startup=False),
+    "turn": TurningProfile("turn", 0.01, startup=False),
+    "sit": Profile("sit", [1.0], [SIT], startup=False),
+    "stand": Profile("stand", [1.0], [STD], startup=False),
+    "lie": Profile("lie", [1.0], [LIE], startup=False),
+    "turn-in-place": Profile("turn-in-place", [1.0], [TLF], startup=False),
+}
 
 
 def gen_bounding_profile():
@@ -274,23 +282,85 @@ def gen_dynamic_jumping_profile_trot(distribution):
     return Profile(name=f"dyn_jumping_j_{j1}_{j2:03d}_t_{t1}_{t2:03d}", stages=stages, ops=ops, startup=True)
 
 
+class MixedProfile(Profile):
+    def __init__(self, profiles, proportions) -> None:
+        super().__init__()
+        self.inst = []
+        profile_length = len(profiles[0].inst.split(DELIMITER))
+        profiles_len = [ int(profile_length * p) for p in proportions]
+
+        for i in range(len(profiles)):
+            self.inst.extend(profiles[i].inst.split(DELIMITER)[:profiles_len[i]])
+        
+        while profile_length > len(self.inst):
+            self.inst.append(NMV)
+        self.inst = DELIMITER.join(self.inst)
+
+        # print(len(self.inst))
+        self.name = []
+        for i in range(len(profiles)):
+            self.name.append(profiles[i].name)
+            self.name.append(f"p_{proportions[i]:.2f}")
+        self.name = '_'.join(self.name)
+
+
+def random_profile_mixer():
+    reliable_motions = ['walk', 'trot', 'turn', 'jump', 'sit', 'lie']
+    num_motions = np.random.randint(1, 4)
+    motions_selected = np.random.choice(reliable_motions, num_motions)
+    print(motions_selected)
+
+    proportions = []
+    rem = 1.0
+    for _ in range(num_motions-1):
+        p = np.random.uniform(0.1, rem-0.1)
+        rem -= p 
+        proportions.append(p)
+    proportions.append(rem)
+
+    profiles = []
+    for motion in motions_selected:
+        startup = len(profiles) == 0 
+        if motion in ['sit', 'lie']:
+            profile = motion_wiki[motion] if startup else motion_wiki_no_startup[motion]
+        elif motion == "walk":
+            vel = np.random.uniform(0, 1)
+            profile = ForwardProfile(f"walk_v_{vel:.2f}", vel=vel, startup=startup)
+        elif motion == 'trot':
+            vel = np.random.uniform(1.06, 1.28)
+            profile = ForwardProfile(f"trot_v_{vel:.2f}", vel=vel, startup=startup)
+        elif motion == 'jump':
+            j = np.random.uniform(0.075, 0.125)
+            w = np.random.uniform(0.05, 0.07)
+            profile = Profile(f"jump_j_{j:.3f}_w_{w:.3f}", stages=[j, w], ops=[JMP, FWD], startup=startup)
+        elif motion == "turn":
+            coeff = np.random.uniform(0, 1)
+            direction = np.random.choice(["left", "right"])
+            profile = TurningProfile(f"turn_{direction}_c_{coeff:.2f}", coeff=coeff, direction=direction, startup=startup)
+        
+        profiles.append(profile)
+
+    return MixedProfile(profiles, proportions)
+    
+
+
 if __name__ == "__main__":
-    from matplotlib import pyplot as plt
+    # from matplotlib import pyplot as plt
 
-    sampled_v = np.linspace(0, 2, 101)
-    profiles = [ForwardProfile("", v) for v in sampled_v]
+    # sampled_v = np.linspace(0, 2, 101)
+    # profiles = [ForwardProfile("", v) for v in sampled_v]
 
-    data = {" ": [], "w": [], "j": []}
+    # data = {" ": [], "w": [], "j": []}
 
-    for p in profiles:
-        print(f"v = {p.v:.3f}  inst. = [{p.inst[:100]}...]")
-        # print(p.interp.ops, p.interp.stages)
-        cmds = set(data.keys())
-        for i in range(len(p.interp.ops)):
-            data[p.interp.ops[i]].append(p.interp.stages[i] * 100)
-            cmds.discard(p.interp.ops[i])
-        for cmd in cmds:
-            data[cmd].append(0)
+    # for p in profiles:
+    #     print(f"v = {p.v:.3f}  inst. = [{p.inst[:100]}...]")
+    #     # print(p.interp.ops, p.interp.stages)
+    #     cmds = set(data.keys())
+    #     for i in range(len(p.interp.ops)):
+    #         data[p.interp.ops[i]].append(p.interp.stages[i] * 100)
+    #         cmds.discard(p.interp.ops[i])
+    #     for cmd in cmds:
+    #         data[cmd].append(0)
 
     # plt.figure(figsize=(8, 6))
     # names = {" ": "NoMove", "w": "Forward", "j": "Jump"}
@@ -302,3 +372,7 @@ if __name__ == "__main__":
     # plt.ylabel("proportion of commands / %")
 
     # plt.savefig("outputs/v.png")
+
+
+    # MixedProfile(profiles[:2], [0.5, 0.5])
+    print(random_profile_mixer())

@@ -14,7 +14,7 @@ from thirdparty.retarget_motion import retarget_motion as retarget_utils
 parser = argparse.ArgumentParser(description="Generate forwarding gaits at customized speeds.")
 parser.add_argument("-v", "--velocity", type=float, help="target velocity")
 parser.add_argument("-o", "--output", type=str, help="output path", default="outputs")
-parser.add_argument("-s", "--startup", type=bool, help="whether use startup second", default=True)
+parser.add_argument("-s", "--startup", action='store_true', help="whether use startup second")
 args = parser.parse_args()
 
 if not os.path.exists(args.output):
