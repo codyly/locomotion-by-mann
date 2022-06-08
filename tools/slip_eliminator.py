@@ -206,7 +206,8 @@ try:
 
         # time.sleep(1 / C.SYS_FREQ)
         timer += 1 / C.SYS_FREQ
-
+    if not os.path.exists(args.output):
+        os.makedirs(args.output)
     np.savetxt(
         args.output + "/" + args.file.split("/")[-1][:-4] + "_corrected.txt", np.array(corrected_mocap), fmt="%.5f"
     )

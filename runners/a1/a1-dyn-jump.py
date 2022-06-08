@@ -16,7 +16,7 @@ parser = argparse.ArgumentParser(description="Generate forwarding gaits at custo
 parser.add_argument("-f", "--forward", type=float, help="forward distribution")
 parser.add_argument("-j", "--jumping", type=float, help="jumping distribution")
 parser.add_argument("-o", "--output", type=str, help="output path", default="outputs")
-parser.add_argument("-s", "--startup", type=bool, help="whether use startup second", default=True)
+parser.add_argument("-s", "--startup", action='store_true', help="whether use startup second")
 args = parser.parse_args()
 
 if not os.path.exists(args.output):
@@ -38,6 +38,16 @@ bullet_robot = p.loadURDF(config.URDF_FILENAME, config.INIT_POS, config.INIT_ROT
 retarget_utils.set_pose(bullet_robot, np.concatenate([config.INIT_POS, config.INIT_ROT, config.DEFAULT_JOINT_POSE]))
 
 profile = P.gen_dynamic_jumping_profile_trot((args.jumping, args.forward))
+print(profile.inst)
+inst = profile.inst.split(',')
+inst[200:300] = inst[100:200]
+inst[300:400] = inst[100:200]
+inst[400:500] = inst[200:300]
+
+# for i in range(200, len(inst)):
+#     inst[i] = 'w'
+profile.inst = ','.join(inst)
+print(profile.inst)
 animation = Animation(profile=profile)
 
 generator = animation.gen_frame()

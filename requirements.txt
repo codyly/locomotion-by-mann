@@ -2,3 +2,5 @@ numpy
 pybullet
 scipy
 torch
+keyboard
+matplotlib

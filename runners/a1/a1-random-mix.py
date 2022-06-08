@@ -19,21 +19,17 @@ import pybullet
 import pybullet_data as pd
 
 from animation import common as C
-from animation.profiles import motion_wiki
-from animation.profiles import motion_wiki_no_startup 
+from animation import profiles as P
+from animation import utils as U
 from animation.animation import Animation
 from thirdparty.retarget_motion import retarget_motion as retarget_utils
 
 parser = argparse.ArgumentParser(description="Generate forwarding gaits at customized speeds.")
 parser.add_argument("-o", "--output", type=str, help="output path", default="outputs")
-parser.add_argument("-t", "--type", type=str, help="motion type in wiki", default="walk")
-parser.add_argument("-s", "--startup", action='store_true', help="whether use startup second")
 args = parser.parse_args()
 
 if not os.path.exists(args.output):
     os.makedirs(args.output)
-
-Wiki = motion_wiki if args.startup else motion_wiki_no_startup
 
 
 config = retarget_utils.config
@@ -50,7 +46,7 @@ bullet_robot = p.loadURDF(config.URDF_FILENAME, config.INIT_POS, config.INIT_ROT
 # Set robot to default pose to bias knees in the right direction.
 retarget_utils.set_pose(bullet_robot, np.concatenate([config.INIT_POS, config.INIT_ROT, config.DEFAULT_JOINT_POSE]))
 
-profile = Wiki[args.type]
+profile = P.random_profile_mixer()
 animation = Animation(profile=profile)
 
 generator = animation.gen_frame()
@@ -65,13 +61,24 @@ timer = 0
 try:
     # record horizontal displacement
     prev_loc = np.zeros(2)
+    prev_vec = np.array([1, 0, 0])
+
     d = 0
     d1 = 0
-    while timer < C.DURATION + args.startup:
+    angle = 0
+
+    while timer < C.DURATION + 1:
         joint_pos_data = np.array([next(generator) for _ in range(1)])
 
         pose = retarget_utils.retarget_motion_once(bullet_robot, joint_pos_data[0], style=animation.get_root_styles())
 
+        quat = pose[3:7]
+        vec = U.quat_rot_vec(quat, np.array([1, 0, 0]))
+        vec[2] = 0
+        vec = vec / np.linalg.norm(vec)
+        angle += U.signed_angle(prev_vec, vec, up=np.array([0, 0, 1]), deg=True)
+        prev_vec = vec
+        
         # correct quaternion
         w = pose[6]
         pose[4:7] = pose[3:6]
@@ -98,9 +105,9 @@ try:
     flt_part = round((speed - int_part) * 1000)
     int_part_1 = int(speed1)
     flt_part_1 = round((speed1 - int_part_1) * 1000)
-    output_file = f"{animation.profile.name}_t_{args.type}_sp_{int_part}_{flt_part:03d}.txt"
-    if args.startup:
-        output_file = "startup_" + output_file[:-4] + f"_sp1_{int_part_1}_{flt_part_1:03d}.txt"
+    output_file = f"{animation.profile.name}_sp_{int_part}_{flt_part:03d}.txt"
+    if 1:
+        output_file = "startup_" + output_file[:-4] + f"_sp1_{int_part_1}_{flt_part_1:03d}_angle_{int(angle)}.txt"
 
 
 except KeyboardInterrupt:
