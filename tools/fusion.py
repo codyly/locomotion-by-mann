@@ -1,10 +1,9 @@
-
 import argparse
 from cmath import phase
 import os
 
-import math 
-import numpy as np 
+import math
+import numpy as np
 import pybullet
 import pybullet_data as pd
 
@@ -13,29 +12,31 @@ from animation import utils as U
 from thirdparty.retarget_motion import retarget_motion as retarget_utils
 from thirdparty.retarget_motion import retarget_config_a1 as config
 
+
 class TrajectoryGenerator:
-    def __init__(self, name, func=lambda t: t, T = math.pi * 2) -> None:
-        self.name = name 
-        self.func = func 
-        self.T = T 
+    def __init__(self, name, func=lambda t: t, T=math.pi * 2) -> None:
+        self.name = name
+        self.func = func
+        self.T = T
         np.testing.assert_almost_equal(self.func(0), self.func(T))
-    
+
     def get(self, t):
         return self.func(t)
-    
+
 
 class TGGait:
-    def __init__(self, tg: TrajectoryGenerator, phases = [0, 0, 0, 0]) -> None:
+    def __init__(self, tg: TrajectoryGenerator, phases=[0, 0, 0, 0]) -> None:
         self.init_phases = phases
         self.phases = phases
-        self.tg = tg 
-    
+        self.tg = tg
+
     def get(self):
         return [self.tg.get(t) for t in self.phases]
-    
+
     def step(self, dt):
-        self.phases = [(t+dt) % self.tg.T for t in self.phases]
+        self.phases = [(t + dt) % self.tg.T for t in self.phases]
         return self.get()
+
 
 parser = argparse.ArgumentParser(description="Visualize generated motion clips")
 parser.add_argument("-f", "--file", type=str, help="motion clip file")
@@ -82,6 +83,7 @@ try:
     target_fused_recovery_iter = 5
 
     toe_ids = [5, 15, 10, 20]
+    knee_ids = [4, 14, 9, 19]
 
     corrected_mocap = []
 
@@ -92,10 +94,12 @@ try:
     fused_toe_pose = np.zeros([4])
     fused_state = 0
 
-    A = 0.08
-    tg = TrajectoryGenerator("sin", lambda t: A + A * math.sin(2*math.pi*t), T=1.0)
+    # A = 0.1
+    # tg = TrajectoryGenerator("sin", lambda t: 0.1 + A + A * math.sin(2 * math.pi * t), T=1.0)
+    A = 0.05
+    tg = TrajectoryGenerator("sin", lambda t: A * math.sin(2 * math.pi * t), T=1.0)
     walk_gait = TGGait(tg=tg, phases=[0.5, 0, 0, 0.5])
-    num_cycles = 25
+    num_cycles = 18
     dt = num_cycles * walk_gait.tg.T / motion_clip.shape[0]
     print(dt)
     lerp_t = 1
@@ -109,7 +113,6 @@ try:
         w = pose[3]
         pose[3:6] = pose[4:7]
         pose[6] = w
-        
 
         if init_pose is None:
             init_pose = pose.copy()
@@ -120,60 +123,77 @@ try:
             )
 
         else:
-            retarget_utils.set_pose(bullet_robot, pose)
-            
+            # retarget_utils.set_pose(bullet_robot, pose, z=None)
+            # retarget_utils.set_pose(bullet_robot, pose, z=walk_gait.step(dt)[0] + 0.05)
+            dz = walk_gait.step(dt)[1]
+            print(dz, init_pose[2])
+            retarget_utils.set_pose(bullet_robot, pose, z=dz + init_pose[2])
+
             # retarget_utils.update_camera(bullet_robot, force_dist=1)
             toe_pose = np.array(
                 [pybullet.getLinkState(bullet_robot, toe_id, computeForwardKinematics=True)[4] for toe_id in toe_ids]
             )
 
-            slipped = prev_toe_pose[:, 2] < 0.033
-
-            slope = np.rad2deg(
-                np.arctan(
-                    np.abs(toe_pose[:, 2] - prev_toe_pose[:, 2])
-                    / (1e-10 + np.linalg.norm(toe_pose[:, :2] - prev_toe_pose[:, :2], axis=1))
-                )
+            knee_pose = np.array(
+                [pybullet.getLinkState(bullet_robot, knee_id, computeForwardKinematics=True)[4] for knee_id in knee_ids]
             )
-            slipped = np.logical_and(slipped, slope < 5.0)
 
-            vz = np.abs(toe_pose[:, 2] - prev_toe_pose[:, 2])
-            slipped = np.logical_and(slipped, vz < 0.01)
+            # slipped = prev_toe_pose[:, 2] < 0.033
+
+            # slope = np.rad2deg(
+            #     np.arctan(
+            #         np.abs(toe_pose[:, 2] - prev_toe_pose[:, 2])
+            #         / (1e-10 + np.linalg.norm(toe_pose[:, :2] - prev_toe_pose[:, :2], axis=1))
+            #     )
+            # )
+            # slipped = np.logical_and(slipped, slope < 5.0)
+
+            # vz = np.abs(toe_pose[:, 2] - prev_toe_pose[:, 2])
+            # slipped = np.logical_and(slipped, vz < 0.01)
 
             # if np.any(slipped):
             #     lerp_t *= 0.01
             # else:
             #     lerp_t *= 1.1
-            
+
             # lerp_t = min(1, lerp_t)
-            
 
             # tggait_height = U.lerp(np.array(walk_gait.step(dt)), toe_pose[:, 2], lerp_t)
 
             # lerp_p[slipped] *= 0.01
             # lerp_p[np.logical_not(slipped)] *= 1.1
-            
+
             # lerp_p = np.clip(0, 1, lerp_p)
-            
+
             # tggait_height = U.lerp(np.array(walk_gait.step(dt)), toe_pose[:, 2], lerp_p)
 
             # print(lerp_p)
 
-            toe_pose[:, 2] = np.array(walk_gait.step(dt))
+            # toe_pose[:, 2] = np.array(walk_gait.step(dt))
 
-            # print(toe_pose)
-            
+            # print(toe_pose[:, 2] )
+            # toe_pose[:, 2] = 0.02
+
+            ids = [0, 2]
+            toe_pose[0][ids] = toe_pose[2][ids]
+            knee_pose[0][ids] = knee_pose[2][ids]
+            toe_pose[1][ids] = toe_pose[3][ids]
+            knee_pose[1][ids] = knee_pose[3][ids]
+
+            toe_pose[:, 2] -= dz
+            knee_pose[:, 2] -= dz
+
             fused_ik_joint_angles = pybullet.calculateInverseKinematics2(
                 bullet_robot,
-                toe_ids,
-                toe_pose,
+                np.concatenate([toe_ids, knee_ids]),
+                np.concatenate([toe_pose, knee_pose], axis=0),
                 jointDamping=config.JOINT_DAMPING,
                 restPoses=config.DEFAULT_JOINT_POSE,
                 lowerLimits=joint_lim_low,
                 upperLimits=joint_lim_high,
                 maxNumIterations=10,
             )
-            
+
             prev_toe_pose = np.array(
                 [pybullet.getLinkState(bullet_robot, toe_id, computeForwardKinematics=True)[4] for toe_id in toe_ids]
             )
@@ -193,12 +213,10 @@ try:
 
         # time.sleep(1 / C.SYS_FREQ)
         timer += 1 / C.SYS_FREQ
-    
+
     if not os.path.exists(args.output):
         os.makedirs(args.output)
-    np.savetxt(
-        args.output + "/" + args.file.split("/")[-1][:-4] + "_fused.txt", np.array(corrected_mocap), fmt="%.5f"
-    )
+    np.savetxt(args.output + "/" + args.file.split("/")[-1][:-4] + "_fused.txt", np.array(corrected_mocap), fmt="%.5f")
 
 except KeyboardInterrupt:
     p.disconnect()

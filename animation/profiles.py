@@ -45,7 +45,7 @@ class Profile:
         profile.append(NMV)
 
         return "".join(profile)
-    
+
     def __str__(self) -> str:
         return self.name
 
@@ -200,8 +200,14 @@ class TurningGaitInterpolatior:
         self.stages = [0.5, 0.5 * (1 - coeff), 0.5 * coeff]
 
 
-# trot = Profile(name="trot", stages=[1.0 / 60, 2.0 / 60], ops=[JMP, FWD])
-trot = Profile(name="trot", stages=[1.5 / 100, 1.5 / 100], ops=[JMP, FWD])
+trot = Profile(name="trot", stages=[1.0 / 60, 2.0 / 60], ops=[JMP, FWD])
+gallop = Profile(name="gallop", stages=[1.5 / 100, 1.5 / 100], ops=[JMP, FWD])
+out = ""
+for i in range(34):
+    out += gallop.inst[:-1]
+# open("animation/data/gallop.txt", "w+").write(out)
+gallop.inst = "".join([line.strip() for line in open("animation/data/gallop.txt", "r").readlines()])
+
 full_speed_forwarding = Profile(name="full_speed_forwarding", stages=[0.01, 0.99], ops=[NMV, JMP])
 full_speed_moving_left = Profile(name="full_speed_moving_left", stages=[0.01, 0.99], ops=[NMV, MLF])
 
@@ -287,11 +293,11 @@ class MixedProfile(Profile):
         super().__init__()
         self.inst = []
         profile_length = len(profiles[0].inst.split(DELIMITER))
-        profiles_len = [ int(profile_length * p) for p in proportions]
+        profiles_len = [int(profile_length * p) for p in proportions]
 
         for i in range(len(profiles)):
-            self.inst.extend(profiles[i].inst.split(DELIMITER)[:profiles_len[i]])
-        
+            self.inst.extend(profiles[i].inst.split(DELIMITER)[: profiles_len[i]])
+
         while profile_length > len(self.inst):
             self.inst.append(NMV)
         self.inst = DELIMITER.join(self.inst)
@@ -301,47 +307,48 @@ class MixedProfile(Profile):
         for i in range(len(profiles)):
             self.name.append(profiles[i].name)
             self.name.append(f"p_{proportions[i]:.2f}")
-        self.name = '_'.join(self.name)
+        self.name = "_".join(self.name)
 
 
 def random_profile_mixer():
-    reliable_motions = ['walk', 'trot', 'turn', 'jump', 'sit', 'lie']
+    reliable_motions = ["walk", "trot", "turn", "jump", "sit", "lie"]
     num_motions = np.random.randint(1, 4)
     motions_selected = np.random.choice(reliable_motions, num_motions)
     print(motions_selected)
 
     proportions = []
     rem = 1.0
-    for _ in range(num_motions-1):
-        p = np.random.uniform(0.1, rem-0.1)
-        rem -= p 
+    for _ in range(num_motions - 1):
+        p = np.random.uniform(0.1, rem - 0.1)
+        rem -= p
         proportions.append(p)
     proportions.append(rem)
 
     profiles = []
     for motion in motions_selected:
-        startup = len(profiles) == 0 
-        if motion in ['sit', 'lie']:
+        startup = len(profiles) == 0
+        if motion in ["sit", "lie"]:
             profile = motion_wiki[motion] if startup else motion_wiki_no_startup[motion]
         elif motion == "walk":
             vel = np.random.uniform(0, 1)
             profile = ForwardProfile(f"walk_v_{vel:.2f}", vel=vel, startup=startup)
-        elif motion == 'trot':
+        elif motion == "trot":
             vel = np.random.uniform(1.06, 1.28)
             profile = ForwardProfile(f"trot_v_{vel:.2f}", vel=vel, startup=startup)
-        elif motion == 'jump':
+        elif motion == "jump":
             j = np.random.uniform(0.075, 0.125)
             w = np.random.uniform(0.05, 0.07)
             profile = Profile(f"jump_j_{j:.3f}_w_{w:.3f}", stages=[j, w], ops=[JMP, FWD], startup=startup)
         elif motion == "turn":
             coeff = np.random.uniform(0, 1)
             direction = np.random.choice(["left", "right"])
-            profile = TurningProfile(f"turn_{direction}_c_{coeff:.2f}", coeff=coeff, direction=direction, startup=startup)
-        
+            profile = TurningProfile(
+                f"turn_{direction}_c_{coeff:.2f}", coeff=coeff, direction=direction, startup=startup
+            )
+
         profiles.append(profile)
 
     return MixedProfile(profiles, proportions)
-    
 
 
 if __name__ == "__main__":
@@ -373,6 +380,12 @@ if __name__ == "__main__":
 
     # plt.savefig("outputs/v.png")
 
-
     # MixedProfile(profiles[:2], [0.5, 0.5])
-    print(random_profile_mixer())
+
+    print(len(motion_wiki_no_startup["walk"].inst.split(",")))
+
+    out = "j,j,j,j,j,j,j,j,w,w,w,w,"
+    for i in range(33):
+        out += gallop.inst[:-1]
+
+    open("animation/data/gallop.txt", "w+").write(out)

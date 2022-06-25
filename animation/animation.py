@@ -1,8 +1,10 @@
+import math
 import numpy as np
 import torch
 
 from animation.kinematics import Trajectory, Point, PID
 from animation.controller import SimInputHandler, Controller, KeyboardInputHandler
+from animation.locopath import LocoPath
 from animation import common as C
 from animation import utils as U
 from animation import profiles as P
@@ -227,7 +229,7 @@ class Animation:
                 self.trajectory.points[i].speed, np.linalg.norm(self.target_velocity), rate
             )
 
-    def gen_frame(self):
+    def gen_frame(self, keep_straight=False, loco_path: LocoPath = None):
 
         Xmean = self.mann.input_mean
         Xstd = self.mann.input_std
@@ -267,9 +269,113 @@ class Animation:
             self.bone_up.append(U.mat_multi_vec(previous_root, bone_input[i, 6:9]))
             self.bone_vel.append(np.zeros(3))
 
+        direction_adjustion_steps = 10
+
+        cur_step = 0
+
+        self.cur_loco_id = 0
+        m = 1
         while True:
 
             self.controller.get_input()
+
+            cur_step += 1
+
+            REF_HIP_JOINT_IDS = [6, 16, 11, 20]
+
+            # print(cur_step)
+
+            if loco_path != None and cur_step > 0:
+
+                if m == 0:
+                    control_pos = loco_path.get_pos(cur_step)
+                    prev_fwd = loco_path.get_fwd(cur_step - 1)
+                    control_fwd = loco_path.get_fwd(cur_step)
+
+                    angle = np.rad2deg(np.abs(np.arccos(prev_fwd.dot(control_fwd))))
+                    if np.cross(prev_fwd, control_fwd).dot(C.VEC_UP) < 0:
+                        if angle < 1:
+                            self.controller.current_keys = [ord(P.FWD), ord(P.MLF)]
+                        elif angle < 10:
+                            self.controller.current_keys = [ord(P.MLF)]
+                        else:
+                            self.controller.current_keys = [ord(P.TLF)]
+
+                    elif np.cross(prev_fwd, control_fwd).dot(C.VEC_UP) > 0:
+                        if angle < 1:
+                            self.controller.current_keys = [ord(P.FWD), ord(P.MRT)]
+                        elif angle < 10:
+                            self.controller.current_keys = [ord(P.MRT)]
+                        else:
+                            self.controller.current_keys = [ord(P.TRT)]
+
+                # print(angle)
+                else:
+                    control_pos = loco_path.get_pos(self.cur_loco_id)
+                    control_fwd = loco_path.get_fwd(self.cur_loco_id)
+
+                    torso_pos = np.array([self.bone_pos[0][0], 0, self.bone_pos[0][2]])
+                    torso_fwd = np.array(
+                        [self.bone_pos[3][0] - self.bone_pos[0][0], 0, self.bone_pos[3][2] - self.bone_pos[0][2]]
+                    )
+                    torso_fwd /= np.linalg.norm(torso_fwd)
+
+                    print(control_pos.round(3), torso_pos.round(3), np.linalg.norm(torso_pos - control_pos).round(3))
+
+                    if np.linalg.norm(torso_pos - control_pos) < 0.25:
+                        self.cur_loco_id += 5
+                        self.cur_loco_id = min(loco_path.num_frames - 1, self.cur_loco_id)
+                    else:
+                        d = control_pos - torso_pos
+                        d /= np.linalg.norm(d)
+                        angle = np.rad2deg(np.abs(np.arccos(torso_fwd.dot(d))))
+
+                        if np.cross(torso_fwd, d).dot(C.VEC_UP) > 0:
+                            if angle < 5:
+                                self.controller.current_keys = [ord(P.FWD)]
+
+                            elif angle < 60:
+                                self.controller.current_keys = [ord(P.MLF)]
+                            else:
+                                self.controller.current_keys = [ord(P.TLF)]
+
+                        elif np.cross(torso_fwd, d).dot(C.VEC_UP) < 0:
+                            if angle < 5:
+                                self.controller.current_keys = [ord(P.FWD)]
+
+                            elif angle < 60:
+                                self.controller.current_keys = [ord(P.MRT)]
+                            else:
+                                self.controller.current_keys = [ord(P.TRT)]
+
+                        # print(d.round(3), torso_fwd.round(3), torso_fwd.dot(d).round(3))
+
+                        # if ord(P.FWD) in self.controller.current_keys:
+                        #     if np.dot(d, torso_fwd) < 0:
+                        #         self.controller.current_keys = [ord(P.BWD)]
+
+                        #     if np.cross(torso_fwd, d).dot(C.VEC_UP) < 0 and np.abs(np.arccos(d.dot(torso_fwd))) > math.pi / 6:
+                        #         self.controller.current_keys = [ord(P.MLF)]
+
+                        #     elif np.cross(torso_fwd, d).dot(C.VEC_UP) > 0 and np.abs(np.arccos(d.dot(torso_fwd))) > math.pi / 6:
+                        #         self.controller.current_keys = [ord(P.MRT)]
+
+                        # print(control_pos, torso_pos, d, torso_fwd)
+
+            if keep_straight and cur_step % direction_adjustion_steps:
+                # print(self.controller.current_keys[0] == ord(P.FWD))
+                diff = np.mean(list(map(lambda id: self.bone_pos[id][0], REF_HIP_JOINT_IDS)))
+                # print(diff)
+                # if ord(P.FWD) in self.controller.current_keys:
+                #     if diff > 0.01:
+                #         self.controller.current_keys.append(ord(P.MRT))
+                #     elif diff < -0.01:
+                #         self.controller.current_keys.append(ord(P.MLF))
+                if ord(P.FWD) in self.controller.current_keys:
+                    if diff > 0.025:
+                        self.controller.current_keys = [ord(P.MRT)]
+                    elif diff < -0.025:
+                        self.controller.current_keys = [ord(P.MLF)]
 
             self.predict_trajectory()
 
@@ -401,6 +507,9 @@ class Animation:
                 self.bone_vel[i] = velocity
 
             start += self.bone_dim_output * self.bone_num
+
+            # bone_id = 1
+            # print(np.round(self.bone_fwd[bone_id], 2), np.round(self.bone_pos[bone_id], 2))
 
             yield np.concatenate(self.bone_pos)
 
