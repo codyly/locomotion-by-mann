@@ -78,7 +78,7 @@ try:
         vec = vec / np.linalg.norm(vec)
         angle += U.signed_angle(prev_vec, vec, up=np.array([0, 0, 1]), deg=True)
         prev_vec = vec
-        
+
         # correct quaternion
         w = pose[6]
         pose[4:7] = pose[3:6]

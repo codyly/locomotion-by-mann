@@ -36,7 +36,9 @@ bullet_robot = p.loadURDF(config.URDF_FILENAME, config.INIT_POS, config.INIT_ROT
 # Set robot to default pose to bias knees in the right direction.
 retarget_utils.set_pose(bullet_robot, np.concatenate([config.INIT_POS, config.INIT_ROT, config.DEFAULT_JOINT_POSE]))
 
-profile = TurningProfile(f"turning_{args.direction}_profile", coeff=args.coeff, direction=args.direction, startup=args.startup)
+profile = TurningProfile(
+    f"turning_{args.direction}_profile", coeff=args.coeff, direction=args.direction, startup=args.startup
+)
 animation = Animation(profile=profile)
 
 generator = animation.gen_frame()

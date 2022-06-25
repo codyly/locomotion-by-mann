@@ -32,6 +32,7 @@ FRAME_DURATION = 0.01667
 REF_COORD_ROT = transformations.quaternion_from_euler(0.5 * np.pi, 0, 0)
 REF_POS_OFFSET = np.array([0, 0, 0])
 REF_ROOT_ROT = transformations.quaternion_from_euler(0, 0, 0.47 * np.pi)
+# REF_ROOT_ROT = transformations.quaternion_from_euler(0, 0, 0.5 * np.pi)
 
 REF_PELVIS_JOINT_ID = 0
 REF_NECK_JOINT_ID = 3
@@ -109,9 +110,11 @@ def set_joint_pose(joint_pose, pose):
     return
 
 
-def set_pose(robot, pose):
+def set_pose(robot, pose, z=None):
     num_joints = pybullet.getNumJoints(robot)
     root_pos = get_root_pos(pose)
+    if z is not None:
+        root_pos[2] = z
     root_rot = get_root_rot(pose)
     pybullet.resetBasePositionAndOrientation(robot, root_pos, root_rot)
 
