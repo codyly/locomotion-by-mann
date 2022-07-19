@@ -60,6 +60,14 @@ try:
         pose[3:6] = pose[4:7]
         pose[6] = w
 
+        cur_loc = pose[:2]
+        d += np.linalg.norm(cur_loc - prev_loc)
+
+        prev = [prev_loc[0], prev_loc[1], 0]
+        cur = [cur_loc[0], cur_loc[1], 0]
+        p.addUserDebugLine(prev, cur, lineColorRGB=[0, 0, 1], lineWidth=50.0, lifeTime=10000)
+        prev_loc = cur_loc
+
         if init_pose is None:
             init_pose = pose.copy()
             bullet_robot = p.loadURDF(config.URDF_FILENAME, init_pose[:3], init_pose[3:7])

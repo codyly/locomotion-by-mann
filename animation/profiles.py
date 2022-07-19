@@ -19,7 +19,7 @@ LIE = "l"
 DELIMITER = ","
 
 NUM_QUERIES = C.NUM_QUERIES
-BLOCK_ORDER = {NMV: 0, FWD: 1, JMP: 2, MLF: 3, MRT: 4}
+BLOCK_ORDER = {NMV: 0, FWD: 1, JMP: 2, MLF: 3, MRT: 4, TLF: 5, TRT: 6}
 
 
 class Profile:
@@ -140,7 +140,6 @@ class TurningProfile(Profile):
         if startup:
             startup_cmd = f"{FWD}{DELIMITER}" * C.SYS_FREQ
             self.inst = startup_cmd + self.inst
-        # print(self.inst[:60])
 
     def averaging(self) -> None:
         stage_lib = {self.interp.ops[i]: self.interp.stages[i] for i in range(len(self.interp.ops))}
@@ -199,6 +198,71 @@ class TurningGaitInterpolatior:
 
         self.stages = [0.5, 0.5 * (1 - coeff), 0.5 * coeff]
 
+
+class TurningInPlaceProfile(Profile):
+    def __init__(self, name, coeff, mix_method=NMV, direction="right", startup=False) -> None:
+        super().__init__()
+        self.name = name
+        self.interp = TurningInPlaceGaitInterpolatior(mix_method=mix_method, coeff=coeff, direction=direction)
+        self.inst = self.averaging()
+        if startup:
+            startup_cmd = f"{FWD}{DELIMITER}" * C.SYS_FREQ
+            self.inst = startup_cmd + self.inst
+        print(self.inst[100:200])
+
+    def averaging(self) -> None:
+        stage_lib = {self.interp.ops[i]: self.interp.stages[i] for i in range(len(self.interp.ops))}
+        cmd_lib = sorted(self.interp.ops, reverse=True, key=lambda x: stage_lib[x])
+        num_cmd_lib = {}
+        num_sum = 0
+        for cmd in cmd_lib[:-1]:
+            num_cmd_lib[cmd] = round(C.NUM_QUERIES * stage_lib[cmd])
+            num_sum += num_cmd_lib[cmd]
+        num_cmd_lib[cmd_lib[-1]] = C.NUM_QUERIES - num_sum
+        inst = [[cmd_lib[0]] for _ in range(num_cmd_lib[cmd_lib[0]])]
+        print(num_cmd_lib)
+        num_base = len(inst)
+        base_interval = C.DURATION / num_base
+        for cmd in cmd_lib[1:]:
+            num = num_cmd_lib[cmd]
+            if num > 0:
+                interval = num_base / num
+                p = 0
+                while num > 0:
+                    if np.abs(p - interval * (num_cmd_lib[cmd] - num)) < 0.1:
+                        inst[int(p)].append(cmd)
+                        num -= 1
+                    p += base_interval
+                    if num > 0 and p >= num_base:
+                        interval = num_base / num
+                        p = interval - 1
+
+        inst_out = []
+        for i in range(num_base):
+            for cmd in sorted(inst[i], key=lambda x: BLOCK_ORDER[x]):
+                inst_out.append(cmd)
+                inst_out.append(DELIMITER)
+        inst_out.pop(-1)
+
+        return "".join(inst_out)
+
+
+class TurningInPlaceGaitInterpolatior:
+
+    def __init__(self, coeff, mix_method=NMV, direction="right", min_split=1.0 / C.SYS_FREQ) -> None:
+
+        self.stages = []
+        self.ops = []
+        self.splits = int(1.0 / min_split)
+        self.turn_op = TLF if direction == "left" else TRT
+
+        if self.splits > C.SYS_FREQ:
+            raise ValueError("number of splits larger than control frequency!")
+
+        self.min_split = min_split
+        self.ops = [mix_method, self.turn_op]
+
+        self.stages = [(1 - coeff), coeff]
 
 trot = Profile(name="trot", stages=[1.0 / 60, 2.0 / 60], ops=[JMP, FWD])
 gallop = Profile(name="gallop", stages=[1.5 / 100, 1.5 / 100], ops=[JMP, FWD])

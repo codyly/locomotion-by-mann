@@ -1,6 +1,7 @@
 from tkinter import *
 from tkinter.colorchooser import askcolor
 
+import os
 import numpy as np
 
 
@@ -93,6 +94,9 @@ class Paint(object):
     def export(self):
         traj = np.array(self.trajectory)
         traj = traj - traj[0:1]
+        out_dir = os.path.split(self.out_path)[0]
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
         np.savetxt(self.out_path, traj, fmt="%.4f")
         print("Done.")
 

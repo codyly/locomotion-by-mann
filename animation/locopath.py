@@ -23,11 +23,12 @@ class LocoPath:
         distance = np.insert(distance, 0, 0) / distance[-1]
 
         # Interpolation for different methods:
-        interpolations_methods = ["slinear", "quadratic", "cubic"]
+        interpolations_methods = ["slinear"]
         alpha = np.linspace(0, 1, num_frames)
 
         interpolated_points = {}
         for method in interpolations_methods:
+            print(method)
             interpolator = interp1d(distance, points, kind=method, axis=0)
             interpolated_points[method] = interpolator(alpha)
 
@@ -46,10 +47,10 @@ class LocoPath:
         plt.ylabel("y")
         # plt.show()
 
-    def get_pos(self, frame_id, method="cubic"):
+    def get_pos(self, frame_id, method="slinear"):
         return np.array([self.interp_ptrs[method][frame_id][1], 0, self.interp_ptrs[method][frame_id][0]])
 
-    def get_fwd(self, frame_id, method="cubic"):
+    def get_fwd(self, frame_id, method="slinear"):
         if frame_id >= self.num_frames - 1:
             return C.VEC_FORWARD
 

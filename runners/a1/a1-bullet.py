@@ -32,12 +32,12 @@ planeId = p.loadURDF("plane.urdf")
 retarget_utils.set_pose(bullet_robot, np.concatenate([config.INIT_POS, config.INIT_ROT, config.DEFAULT_JOINT_POSE]))
 
 # animation = Animation(profile=P.TurningProfile("turning_right", 0))
-animation = Animation(profile=P.ForwardProfile("aa", 0.8, startup=False), keyboard_input=False)
+animation = Animation(profile=P.ForwardProfile("aa", 1.0, startup=False), keyboard_input=False)
 
 loco_path = LocoPath("outputs/trajectory/star.txt", scale_x=5, scale_y=5, num_frames=C.DURATION * C.SYS_FREQ + 1)
 # loco_path = LocoPath("outputs/trajectory/a.txt", scale_x=5, scale_y=5, num_frames=C.DURATION * C.SYS_FREQ + 1)
-# loco_path = LocoPath("outputs/trajectory/a.txt", scale_x=5, scale_y=5, num_frames=C.DURATION * C.SYS_FREQ + 1)
 
+# generator = animation.gen_frame(keep_straight=False, loco_path=None)
 generator = animation.gen_frame(keep_straight=False, loco_path=loco_path)
 
 markids = retarget_utils.prepare_markers(p, 81)
@@ -92,7 +92,7 @@ try:
         retarget_joint_pos_id += 1
         data = joint_pos_data.popleft()
 
-        pose = retarget_utils.retarget_motion_once(bullet_robot, data, style=animation.get_root_styles())
+        pose = retarget_utils.retarget_motion_once(bullet_robot, data, style=animation.get_root_styles(), style_sensitive=True)
         # print(pose[:3].round(2))
         retarget_utils.update(data, markids, bullet_robot, p)
 
@@ -113,14 +113,14 @@ try:
 
         prev = [prev_loc[0], prev_loc[1], 0]
         cur = [cur_loc[0], cur_loc[1], 0]
-        p.addUserDebugLine(prev, cur, lineColorRGB=[0, 0, 1], lineWidth=50.0, lifeTime=10000)
+        # p.addUserDebugLine(prev, cur, lineColorRGB=[0, 0, 1], lineWidth=50.0, lifeTime=10000)
         prev_loc = cur_loc
         if retarget_joint_pos_id < C.DURATION * C.SYS_FREQ - 1:
             p1 = loco_path.get_pos(frame_id=retarget_joint_pos_id)
             p0 = loco_path.get_pos(frame_id=retarget_joint_pos_id - 1) if retarget_joint_pos_id > 0 else [0, 0, 0]
-            p.addUserDebugLine(
-                [p0[2], p0[0], 0], [p1[2], p1[0], 0], lineColorRGB=[1, 0, 0], lineWidth=500.0, lifeTime=10000
-            )
+            # p.addUserDebugLine(
+            #     [p0[2], p0[0], 0], [p1[2], p1[0], 0], lineColorRGB=[1, 0, 0], lineWidth=500.0, lifeTime=10000
+            # )
 
         motion_clip.append(np.concatenate([[timer], pose]))
         end_time = time.time()
