@@ -118,6 +118,7 @@ def signed_angle(v1, v2, up=C.VEC_UP, deg=False):
     n1 = v1 / np.linalg.norm(v1)
     n2 = v2 / np.linalg.norm(v2)
     cos = np.dot(n1, n2)
+    cos = np.clip(cos, -1, 1)
 
     sign = np.sign(up.dot(np.cross(v1, v2)))
 

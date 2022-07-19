@@ -13,14 +13,14 @@ class Trajectory:
 
 
 class Point:
-    def __init__(self, traj_vec=None, index=0) -> None:
+    def __init__(self, traj_vec=None, index=1) -> None:
         self.index = index
         self.velocity = np.zeros(3)
         self.transformation = np.identity(4)
         self.set_direction(C.VEC_FORWARD)
         self.speed = 0
         if traj_vec is None:
-            self.styles = C.STYLE_NOMOVE
+            self.styles = C.STYLE_TROT
         else:
             self.speed = traj_vec[6]
             self.styles = traj_vec[7:]

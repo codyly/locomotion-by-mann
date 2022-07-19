@@ -211,9 +211,9 @@ class Controller:
     def query_turn(self):
         turn = 0.0
         if TURN_LEFT_KEY in self.current_keys:
-            turn -= 1
-        if TURN_RIGHT_KEY in self.current_keys:
             turn += 1
+        if TURN_RIGHT_KEY in self.current_keys:
+            turn -= 1
         return turn
 
     def query_styles(self):

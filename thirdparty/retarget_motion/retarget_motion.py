@@ -10,7 +10,7 @@ import inspect
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 os.sys.path.insert(0, parentdir)
-
+import math
 import numpy as np
 
 import pybullet
@@ -205,15 +205,28 @@ def retarget_root_pose(ref_joint_pos, style=None):
     root_pos[2] += 0.075
     base_vec = np.array([trunk_len / 2, 0, 0])
     t_vec = rot_mat[:3, :3] @ base_vec
-    if style[3] > 0:
+    root_rot = transformations.quaternion_from_matrix(rot_mat)
+    # print(root_rot)
+    if style[4] > 0:
+        angle = np.rad2deg(math.acos(root_rot[3]))
+        # print(angle)
+
+        if angle > 15:
+            angle = angle/38*50
+        
+        root_rot[3] = math.cos(np.deg2rad(angle))
+        root_pos  = root_pos - 0.00 * np.array([forward_dir[0], forward_dir[1], 0])
+    elif style[3] > 0:
         root_pos[2] = max(np.abs(t_vec[2]) + 0.23, root_pos[2])
     elif style[2] > 0:
         root_pos[2] = max(np.abs(t_vec[2]) + 0.2, root_pos[2] * (1.0 - 0.2 * style[2]))
     else:
         root_pos[2] = max(np.abs(t_vec[2]) + 0.2, root_pos[2])
-    root_rot = transformations.quaternion_from_matrix(rot_mat)
+    # print(root_rot)
+    
     root_rot = transformations.quaternion_multiply(root_rot, config.INIT_ROT)
     root_rot = root_rot / np.linalg.norm(root_rot)
+
 
     return root_pos, root_rot, forward_dir, rot_mat
 
@@ -350,10 +363,6 @@ def retarget_pose_style_sensitive(robot, default_pose, ref_joint_pos, style=None
                     sim_hip_pos[2] = max(sim_hip_pos[2], 0.1)
                     sim_tar_toe_pos[2] = max(0, min(sim_tar_toe_pos[2], 0.05))
                     sim_tar_toe_pos[:2] = sim_hip_pos[:2]
-
-                    front = 1 if forward_dir.dot(sim_hip_pos - root_pos) > 0 else -1
-                    indicator = np.array(sim_hip_pos - (front * forward_dir * 0.267 / 2 + root_pos))
-                    flag = 1 if indicator.dot(toe_offsets) > 0 else -1
 
                     f = forward_dir
                     v2 = sim_tar_toe_pos - sim_hip_pos
