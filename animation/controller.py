@@ -227,21 +227,21 @@ class Controller:
         return styles
 
 
-# def test():
-#     input_handler = SimInputHandler(profile=P.acc_stop.inst, need_parse=True, looping=False)
-#     controller = Controller(input_handler=input_handler)
+def test():
+    input_handler = SimInputHandler(profile=P.acc_stop.inst, need_parse=True, looping=False)
+    controller = Controller(input_handler=input_handler)
 
-#     for _ in range(1):
-#         controller.get_input()
-#         print(controller.query_styles())
+    for _ in range(1):
+        controller.get_input()
+        print(controller.query_styles())
 
-#     user_input_handler = KeyboardInputHandler()
-#     controller = Controller(input_handler=user_input_handler)
+    user_input_handler = KeyboardInputHandler()
+    controller = Controller(input_handler=user_input_handler)
 
-#     for _ in range(600):
-#         controller.get_input()
-#         print(controller.query_styles())
-#         time.sleep(0.1)
+    for _ in range(600):
+        controller.get_input()
+        print(controller.query_styles())
+        time.sleep(0.1)
 
 
 if __name__ == "__main__":

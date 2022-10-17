@@ -26,14 +26,19 @@ if not os.path.exists(args.output):
 config = retarget_utils.config
 
 p = pybullet
-p.connect(p.DIRECT)
-p.configureDebugVisualizer(p.COV_ENABLE_SINGLE_STEP_RENDERING, 1)
+# p.connect(p.DIRECT)
+# p.configureDebugVisualizer(p.COV_ENABLE_SINGLE_STEP_RENDERING, 1)
+p.connect(p.GUI, options="--width=1920 --height=1080")
+p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
+p.configureDebugVisualizer(p.COV_ENABLE_DEPTH_BUFFER_PREVIEW, 0)
+p.configureDebugVisualizer(p.COV_ENABLE_RGB_BUFFER_PREVIEW, 0)
+p.configureDebugVisualizer(p.COV_ENABLE_KEYBOARD_SHORTCUTS, 0)
 p.setAdditionalSearchPath(pd.getDataPath())
 p.resetSimulation()
 p.setGravity(0, 0, 0)
 
 bullet_robot = p.loadURDF(config.URDF_FILENAME, config.INIT_POS, config.INIT_ROT)
-
+planeId = p.loadURDF("plane.urdf")
 # Set robot to default pose to bias knees in the right direction.
 retarget_utils.set_pose(bullet_robot, np.concatenate([config.INIT_POS, config.INIT_ROT, config.DEFAULT_JOINT_POSE]))
 

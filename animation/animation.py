@@ -293,9 +293,7 @@ class Animation:
             cur_step += 1
 
             REF_HIP_JOINT_IDS = [6, 16, 11, 20]
-
             if loco_path != None and cur_step > 0:
-
                 if m == 0:
                     control_pos = loco_path.get_pos(cur_step)
                     prev_fwd = loco_path.get_fwd(cur_step - 1)

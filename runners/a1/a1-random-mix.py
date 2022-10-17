@@ -35,19 +35,25 @@ if not os.path.exists(args.output):
 config = retarget_utils.config
 
 p = pybullet
-p.connect(p.DIRECT)
-p.configureDebugVisualizer(p.COV_ENABLE_SINGLE_STEP_RENDERING, 1)
+# p.connect(p.DIRECT)
+# p.configureDebugVisualizer(p.COV_ENABLE_SINGLE_STEP_RENDERING, 1)
+p.connect(p.GUI, options="--width=1920 --height=1080")
+p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
+p.configureDebugVisualizer(p.COV_ENABLE_DEPTH_BUFFER_PREVIEW, 0)
+p.configureDebugVisualizer(p.COV_ENABLE_RGB_BUFFER_PREVIEW, 0)
+p.configureDebugVisualizer(p.COV_ENABLE_KEYBOARD_SHORTCUTS, 0)
+
 p.setAdditionalSearchPath(pd.getDataPath())
 p.resetSimulation()
 p.setGravity(0, 0, 0)
 
 bullet_robot = p.loadURDF(config.URDF_FILENAME, config.INIT_POS, config.INIT_ROT)
-
+planeId = p.loadURDF("plane.urdf")
 # Set robot to default pose to bias knees in the right direction.
 retarget_utils.set_pose(bullet_robot, np.concatenate([config.INIT_POS, config.INIT_ROT, config.DEFAULT_JOINT_POSE]))
 
 profile = P.random_profile_mixer()
-animation = Animation(profile=profile)
+animation = Animation(profile=profile, keyboard_input=False)
 
 generator = animation.gen_frame()
 
@@ -72,28 +78,29 @@ try:
 
         pose = retarget_utils.retarget_motion_once(bullet_robot, joint_pos_data[0], style=animation.get_root_styles())
 
-        quat = pose[3:7]
-        vec = U.quat_rot_vec(quat, np.array([1, 0, 0]))
-        vec[2] = 0
-        vec = vec / np.linalg.norm(vec)
-        angle += U.signed_angle(prev_vec, vec, up=np.array([0, 0, 1]), deg=True)
-        prev_vec = vec
 
-        # correct quaternion
-        w = pose[6]
-        pose[4:7] = pose[3:6]
-        pose[3] = w
+        # quat = pose[3:7]
+        # vec = U.quat_rot_vec(quat, np.array([1, 0, 0]))
+        # vec[2] = 0
+        # vec = vec / np.linalg.norm(vec)
+        # angle += U.signed_angle(prev_vec, vec, up=np.array([0, 0, 1]), deg=True)
+        # prev_vec = vec
 
-        cur_loc = pose[:2]
-        d += np.linalg.norm(cur_loc - prev_loc)
-        if timer > 1:
-            d1 += np.linalg.norm(cur_loc - prev_loc)
-        prev_loc = cur_loc
+        # # correct quaternion
+        # w = pose[6]
+        # pose[4:7] = pose[3:6]
+        # pose[3] = w
 
-        motion_clip.append(np.concatenate([[timer], pose]))
+        # cur_loc = pose[:2]
+        # d += np.linalg.norm(cur_loc - prev_loc)
+        # if timer > 1:
+        #     d1 += np.linalg.norm(cur_loc - prev_loc)
+        # prev_loc = cur_loc
+
+        # motion_clip.append(np.concatenate([[timer], pose]))
 
         # time.sleep(1 / C.SYS_FREQ)
-        timer += 1 / C.SYS_FREQ
+        # timer += 1 / C.SYS_FREQ
 
     speed = d / (C.DURATION + 1)
     print(f"Locomotion Speed: {speed:.2f} m/s")
@@ -111,15 +118,15 @@ try:
 
 
 except KeyboardInterrupt:
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
-    if not os.path.exists(os.path.join(output_path, output_file)):
-        np.savetxt(os.path.join(output_path, output_file), motion_clip, fmt="%.5f")
+    # if not os.path.exists(output_path):
+    #     os.makedirs(output_path)
+    # if not os.path.exists(os.path.join(output_path, output_file)):
+    #     np.savetxt(os.path.join(output_path, output_file), motion_clip, fmt="%.5f")
     p.disconnect()
 
 finally:
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
-    if not os.path.exists(os.path.join(output_path, output_file)):
-        np.savetxt(os.path.join(output_path, output_file), motion_clip, fmt="%.5f")
+    # if not os.path.exists(output_path):
+    #     os.makedirs(output_path)
+    # if not os.path.exists(os.path.join(output_path, output_file)):
+    #     np.savetxt(os.path.join(output_path, output_file), motion_clip, fmt="%.5f")
     p.disconnect()
