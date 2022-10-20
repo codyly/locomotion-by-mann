@@ -1,6 +1,7 @@
 
 import numpy as np
 from aff_env.simple_env import dummy_env
+import time
 
 '''
 0 for walk
@@ -11,30 +12,17 @@ from aff_env.simple_env import dummy_env
 
 def main():
     env = dummy_env(render=True)
-    env.reset()
-    
 
-    env.reset()
-    for i in range(1):
-        action = np.array([np.random.randint(4)]) 
+    for i in range(100):
+        env.reset()
+        action = np.array([np.random.randint(2)])
         action =[0]
-        pose = env.step(action)
-
-    for i in range(1):
-        action = np.array([np.random.randint(4)]) 
-        action =[1]
-        pose = env.step(action)
-
-    for i in range(2):
-        action = np.array([np.random.randint(4)]) 
-        action =[0]
-        pose = env.step(action)
+        env.step(action)
+        action = [1]
+        obs = env.step(action)
+        print(len(obs["body_pose"]))
 
 
-    for i in range(2):
-        action = np.array([np.random.randint(4)]) 
-        action =[1]
-        pose = env.step(action)
 
 
     
