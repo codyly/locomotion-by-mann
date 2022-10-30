@@ -15,17 +15,18 @@ def main():
 
     for i in range(100):
         env.reset()
-        action = np.array([np.random.randint(2)])
         action =[0]
-        env.step(action)
+        obs1 = env.step(action)
+        env.visualize_trajectory(obs1)
         action = [1]
-        obs = env.step(action)
-        print(len(obs["body_pose"]))
+        obs2 = env.step(action)
+        env.visualize_trajectory(obs2)
+        x = input("input key: ")
+        if x == "" or str(x).lower() == "y":
+            pass
+        else:
+            break
 
-
-
-
-    
 
 
 if __name__ == '__main__':
