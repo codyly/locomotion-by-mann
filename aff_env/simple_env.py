@@ -63,12 +63,12 @@ class dummy_env():
         self.clear_landscape()
         self.load_landscape()
 
-    def load_landscape(self, n=2):
+    def load_landscape(self, n=1):
         # x: [0.5, 4.5]
         # y: [-1, 1]
-        half_size_range = [0.05, 0.2]
+        half_size_range = [0.05, 0.3]
         y_bound = [-0.5, 0.5]
-        x_bound = [1., 3.]
+        x_bound = [0.5, 3.]
 
         for _ in range(n):
             sz = np.random.uniform(half_size_range[0],
@@ -200,9 +200,21 @@ class dummy_env():
         fov = 90.
         cam_ratio = float(cam_W) / float(cam_H)
 
-        cam_pos = np.array(cam_pos) + np.array([0.2, 0, 0.15])
+        # make camera tilt
+        phi = np.deg2rad(30)
+        delta_pos = np.array([0.24, 0, 0.15])
+
+        cam_pos = np.array(cam_pos) + delta_pos
+
         cam_mat = self.p.getMatrixFromQuaternion(cam_quat)
         cam_mat = np.array(cam_mat).reshape((3, 3))
+
+
+        rot_y = np.array([[np.cos(phi), 0, np.sin(phi)],
+                          [0, 1, 0],
+                          [-np.sin(phi), 0, np.cos(phi)]])
+        cam_mat = rot_y @ cam_mat
+
         cam_tar = cam_mat @ np.array([cam_dist, 0, 0]) + cam_pos
 
         if self.cam_line is not None:
