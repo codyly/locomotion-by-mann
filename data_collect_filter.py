@@ -121,11 +121,12 @@ def main(root_dir, num_samp, skill_id, filt_tag):
             Image.fromarray(segImg.astype("uint8")).save(segm_name)
             with open(json_name, "w") as outfile:
                 json.dump(label, outfile)
-
             cnt += 1
+
+        print("progress {}/{} ...".format(cnt, num_samp))
         if cnt > num_samp:
             break
 
 
 if __name__ == '__main__':
-    main("../meta_controller/train2", 1600, skill_id=1, filt_tag=0)
+    main("../meta_controller/train3", 1600, skill_id=1, filt_tag=0)
