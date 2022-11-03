@@ -105,6 +105,10 @@ class dummy_env():
         for obj in self.obstacles:
             self.p.removeBody(obj,)
 
+    def get_robot_pose(self):
+        agent_pos, agent_quat = self.p.getBasePositionAndOrientation(self.robot)
+        return agent_pos, agent_quat
+
     def step(self, action, startup=False):
         '''
         action: np.array([int]) 
@@ -136,23 +140,24 @@ class dummy_env():
             agent_pos, agent_quat = self.p.getBasePositionAndOrientation(self.robot)
             img, dep, seg = self.get_camera_data(agent_pos, agent_quat, 480, 640)
 
-            _, axs = plt.subplots(1, 3, figsize=(10, 3))
-            axs[0].imshow(img)
-            axs[0].set_title("color")
-            axs[0].axis("off")
-            axs[1].imshow(dep)
-            axs[1].set_title("depth")
-            axs[1].axis("off")
-            axs[2].imshow(seg, cmap="tab10")
-            axs[2].set_title("segmentation")
-            axs[2].axis("off")
-            plt.show()
-
+            # _, axs = plt.subplots(1, 3, figsize=(10, 3))
+            # axs[0].imshow(img)
+            # axs[0].set_title("color")
+            # axs[0].axis("off")
+            # axs[1].imshow(dep)
+            # axs[1].set_title("depth")
+            # axs[1].axis("off")
+            # axs[2].imshow(seg, cmap="tab10")
+            # axs[2].set_title("segmentation")
+            # axs[2].axis("off")
+            # plt.show()
+            seg[seg==-1] = 255
 
             obs["agent_pos"].append(agent_pos)
             obs["agent_quat"].append(agent_quat)
             obs["agent_color"].append(img)
             obs["agent_depth"].append(dep)
+            obs["agent_segm"].append(seg)
 
             self.p.stepSimulation()
             collision = self.check_collision()
@@ -167,8 +172,8 @@ class dummy_env():
                 for point in contact_i:
                     dist = point[8]
                     if dist < pnt_th:
-                        return True
-        return False
+                        return 1.
+        return 0.
 
     def visualize_trajectory(self, obs, samp=5):
         collisions = obs["collision"]
@@ -195,14 +200,14 @@ class dummy_env():
 
     def get_camera_data(self, cam_pos, cam_quat, cam_H, cam_W):
         cam_dist = 100.
-        farVal = 4.
+        farVal = 5.
         nearVal = 0.01
-        fov = 90.
+        fov = 100.
         cam_ratio = float(cam_W) / float(cam_H)
 
         # make camera tilt
-        phi = np.deg2rad(30)
-        delta_pos = np.array([0.24, 0, 0.15])
+        phi = np.deg2rad(40)
+        delta_pos = np.array([0.25, 0, 0.15])
 
         cam_pos = np.array(cam_pos) + delta_pos
 
@@ -222,6 +227,8 @@ class dummy_env():
         if self.cam_model is not None:
             self.p.removeBody(self.cam_model)
 
+        euler = t3d.euler.mat2euler(cam_mat, "sxyz")
+        cam_quat = self.p.getQuaternionFromEuler(euler)
         self.cam_model = self.add_cube(cam_pos, cam_quat, half_size=(0.02, 0.01, 0.01))
         self.cam_line = self.add_line(cam_pos, cam_tar, (0, 1, 0))
 
@@ -240,15 +247,15 @@ class dummy_env():
             viewMatrix=view_mat,
             projectionMatrix=proj_mat)
 
-        color_img = np.array(rgbImg)
-        color_img = np.reshape(color_img, (cam_H, cam_W, 4))
-        color_img = color_img[:, :, :3]
+        rgbImg = np.array(rgbImg)
+        rgbImg = np.reshape(rgbImg, (cam_H, cam_W, 4))
+        rgbImg = rgbImg[:, :, :3]
 
-        depth_img = np.array(depthImg)
-        depth_img = farVal * nearVal / (farVal - (farVal - nearVal) * depth_img)
-        depth_img = np.reshape(depth_img, (cam_H, cam_W))
+        depthImg = np.array(depthImg)
+        depthImg = farVal * nearVal / (farVal - (farVal - nearVal) * depthImg)
+        depthImg = np.reshape(depthImg, (cam_H, cam_W))
 
-        return color_img, depth_img, segImg
+        return rgbImg, depthImg, segImg
 
     def terminate_env(self,):
         self.p.disconnect()
