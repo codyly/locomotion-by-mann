@@ -1,5 +1,6 @@
 import argparse
 import os
+import time
 
 import numpy as np
 import pybullet
@@ -27,7 +28,7 @@ def convert_to_pose(pose6):
     return pose
 
 class dummy_env():
-    def __init__(self, render=False) -> None:
+    def __init__(self, render=False, cam_h=120, cam_w=160) -> None:
         self.render = render
         self.p = pybullet
 
@@ -53,6 +54,8 @@ class dummy_env():
         self.obstacles = []
         self.cam_model = None
         self.cam_line = None
+        self.cam_h = cam_h
+        self.cam_w = cam_w
 
     def reset(self,):
         profile = P.motion_wiki['sit']
@@ -63,10 +66,14 @@ class dummy_env():
         self.clear_landscape()
         self.load_landscape()
 
+        sensor_data = self.get_sensor_data(cam_h=self.cam_h, cam_w=self.cam_w)
+        return sensor_data
+
+
     def load_landscape(self, n=1):
         # x: [0.5, 4.5]
         # y: [-1, 1]
-        half_size_range = [0.05, 0.3]
+        half_size_range = [0.05, 0.2]
         y_bound = [-0.5, 0.5]
         x_bound = [0.5, 3.]
 
@@ -136,44 +143,71 @@ class dummy_env():
             joint_pos_data = np.array([next(self.generator) for _ in range(1)])
             pose = retarget_utils.retarget_motion_once(self.robot, joint_pos_data[0], style=self.animation.get_root_styles())
             obs["pos_n"].append(pose)
-
-            agent_pos, agent_quat = self.p.getBasePositionAndOrientation(self.robot)
-            img, dep, seg = self.get_camera_data(agent_pos, agent_quat, 480, 640)
-
-            # _, axs = plt.subplots(1, 3, figsize=(10, 3))
-            # axs[0].imshow(img)
-            # axs[0].set_title("color")
-            # axs[0].axis("off")
-            # axs[1].imshow(dep)
-            # axs[1].set_title("depth")
-            # axs[1].axis("off")
-            # axs[2].imshow(seg, cmap="tab10")
-            # axs[2].set_title("segmentation")
-            # axs[2].axis("off")
-            # plt.show()
-            seg[seg==-1] = 255
-
-            obs["agent_pos"].append(agent_pos)
-            obs["agent_quat"].append(agent_quat)
-            obs["agent_color"].append(img)
-            obs["agent_depth"].append(dep)
-            obs["agent_segm"].append(seg)
-
-            self.p.stepSimulation()
-            collision = self.check_collision()
-            obs["collision"].append(collision)
+            obs["sensor_data"].append(self.get_sensor_data(cam_h=self.cam_h, cam_w=self.cam_w))
 
         return obs
 
     def check_collision(self, pnt_th=-0.0001):
         for box in self.obstacles:
             contact_i = self.p.getContactPoints(self.robot, box)
-            if len(contact_i) > 0:
+            if contact_i is not None and len(contact_i) > 0:
                 for point in contact_i:
                     dist = point[8]
                     if dist < pnt_th:
                         return 1.
         return 0.
+
+    def get_sensor_data(self, cam_h, cam_w):
+        sensor_data = {}
+        agent_pos, agent_quat = self.p.getBasePositionAndOrientation(self.robot)
+        img, dep, seg = self.get_camera_data(agent_pos, agent_quat, cam_h, cam_w)
+
+        # _, axs = plt.subplots(1, 3, figsize=(10, 3))
+        # axs[0].imshow(img)
+        # axs[0].set_title("color")
+        # axs[0].axis("off")
+        # axs[1].imshow(dep)
+        # axs[1].set_title("depth")
+        # axs[1].axis("off")
+        # axs[2].imshow(seg, cmap="tab10")
+        # axs[2].set_title("segmentation")
+        # axs[2].axis("off")
+        # plt.show()
+        seg[seg == -1] = 0
+
+        sensor_data["agent_pos"] = agent_pos
+        sensor_data["agent_quat"] = agent_quat
+        sensor_data["agent_color"] = img
+        sensor_data["agent_depth"] = dep
+        sensor_data["agent_segm"] = seg
+
+        self.p.stepSimulation()
+        collision = self.check_collision()
+        sensor_data["collision"] = collision
+
+        # get box locs
+        obstacles = []
+        for box in self.obstacles:
+            corners = self.get_corners(self.p.getAABB(box))
+            obstacles.append(corners)
+
+        sensor_data["obstacles"] = obstacles
+
+        return sensor_data
+
+    def get_corners(self, aabb):
+        xyz_min, xyz_max = aabb
+        corners = []
+        for i in range(8):
+            p = []
+            bits = f"{i:03b}"
+            for b in range(3):
+                if bits[b] == "0":
+                    p.append(xyz_min[b])
+                else:
+                    p.append(xyz_max[b])
+            corners.append(p)
+        return corners
 
     def visualize_trajectory(self, obs, samp=5):
         collisions = obs["collision"]
@@ -229,8 +263,8 @@ class dummy_env():
 
         euler = t3d.euler.mat2euler(cam_mat, "sxyz")
         cam_quat = self.p.getQuaternionFromEuler(euler)
-        self.cam_model = self.add_cube(cam_pos, cam_quat, half_size=(0.02, 0.01, 0.01))
-        self.cam_line = self.add_line(cam_pos, cam_tar, (0, 1, 0))
+        # self.cam_model = self.add_cube(cam_pos, cam_quat, half_size=(0.02, 0.01, 0.01))
+        # self.cam_line = self.add_line(cam_pos, cam_tar, (0, 1, 0))
 
         view_mat = self.p.computeViewMatrix(
             cameraEyePosition=cam_pos,
