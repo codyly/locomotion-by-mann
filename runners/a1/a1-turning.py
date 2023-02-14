@@ -15,12 +15,13 @@ parser = argparse.ArgumentParser(description="Generate forwarding gaits at custo
 parser.add_argument("-c", "--coeff", type=float, help="turning coefficient")
 parser.add_argument("-o", "--output", type=str, help="output path", default="outputs")
 parser.add_argument("-d", "--direction", type=str, help="turning direction", default="right")
-parser.add_argument("-s", "--startup", type=bool, help="whether use startup second", default=True)
+parser.add_argument("-s", "--startup", type=int, help="whether use startup second", default=True)
 args = parser.parse_args()
 
 if not os.path.exists(args.output):
     os.makedirs(args.output)
 
+C.set_duration(args.startup)
 
 config = retarget_utils.config
 

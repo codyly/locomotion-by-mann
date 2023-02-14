@@ -15,9 +15,9 @@ for (( run=0;run<=$numberofruns;run++ ))
 do
 	coeff=$(echo "$mincoeff + $run*($maxcoeff-$mincoeff)/$numberofruns" | bc -l)
     echo $coeff
-    cmd="python -m runners.a1.a1-turning -c $coeff -d $direction -s $startup -o $outdir"
-    echo $cmd 
-    python -m runners.a1.a1-turning -c $coeff -d $direction -s $startup -o $outdir
+    cmd="python3 -m runners.a1.a1-turning -c $coeff -d $direction -s $startup -o $outdir"
+    echo $cmd
+    python3 -m runners.a1.a1-turning -c $coeff -d $direction -s $startup -o $outdir
     echo "finished $run/$numberofruns"
 done
 

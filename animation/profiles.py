@@ -138,8 +138,9 @@ class TurningProfile(Profile):
         self.interp = TurningGaitInterpolatior(coeff=coeff, direction=direction)
         self.inst = self.averaging()
         if startup:
-            startup_cmd = f"{FWD}{DELIMITER}" * C.SYS_FREQ
+            startup_cmd = f"{FWD}{DELIMITER}" * round(C.SYS_FREQ * C.START_UP_DURATION)
             self.inst = startup_cmd + self.inst
+        self.inst = self.inst[:C.NUM_QUERIES]
 
     def averaging(self) -> None:
         stage_lib = {self.interp.ops[i]: self.interp.stages[i] for i in range(len(self.interp.ops))}
@@ -187,16 +188,18 @@ class TurningGaitInterpolatior:
         self.ops = []
         self.splits = int(1.0 / min_split)
         self.turn_op = MLF if direction == "left" else MRT
+        self.turn_in_place_op = TLF if direction == "left" else TRT
 
         if self.splits > C.SYS_FREQ:
             raise ValueError("number of splits larger than control frequency!")
 
         self.min_split = min_split
-        self.ops = [NMV, FWD, self.turn_op]
+        self.ops = [self.turn_in_place_op, FWD, self.turn_op]
+        self.nmv_rate = 0.5
         if coeff == 0:
-            self.stages = [0.5, 0.5 * (1 - coeff), 0.5 * coeff]
+            self.stages = [self.nmv_rate, (1- self.nmv_rate) * (1 - coeff), (1- self.nmv_rate) * coeff]
 
-        self.stages = [0.5, 0.5 * (1 - coeff), 0.5 * coeff]
+        self.stages = [self.nmv_rate, (1- self.nmv_rate) * (1 - coeff), (1- self.nmv_rate) * coeff]
 
 
 class TurningInPlaceProfile(Profile):
@@ -206,8 +209,9 @@ class TurningInPlaceProfile(Profile):
         self.interp = TurningInPlaceGaitInterpolatior(mix_method=mix_method, coeff=coeff, direction=direction)
         self.inst = self.averaging()
         if startup:
-            startup_cmd = f"{FWD}{DELIMITER}" * C.SYS_FREQ
+            startup_cmd = f"{FWD}{DELIMITER}" * round(C.START_UP_DURATION * C.SYS_FREQ)
             self.inst = startup_cmd + self.inst
+        self.inst = self.inst[:C.NUM_QUERIES]
         print(self.inst[100:200])
 
     def averaging(self) -> None:
@@ -265,6 +269,7 @@ class TurningInPlaceGaitInterpolatior:
         self.stages = [(1 - coeff), coeff]
 
 trot = Profile(name="trot", stages=[1.0 / 60, 2.0 / 60], ops=[JMP, FWD])
+
 gallop = Profile(name="gallop", stages=[1.5 / 100, 1.5 / 100], ops=[JMP, FWD])
 out = ""
 for i in range(34):
@@ -319,6 +324,7 @@ motion_wiki_no_startup = {
     "stand": Profile("stand", [1.0], [STD], startup=False),
     "lie": Profile("lie", [1.0], [LIE], startup=False),
     "turn-in-place": Profile("turn-in-place", [1.0], [TLF], startup=False),
+    "gallop": gallop
 }
 
 

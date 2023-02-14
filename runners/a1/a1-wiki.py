@@ -8,6 +8,7 @@ motion_wiki = {
     "stand": Profile("stand", [1.0], [STD], startup=True),
     "lie": Profile("lie", [1.0], [LIE], startup=True),
     "turn-in-place": Profile("turn-in-place", [1.0], [TLF], startup=True),
+    "gallop": Profile("gallop", stages=[1.5 / 100, 1.5 / 100], ops=[JMP, FWD])
 }
 """
 
@@ -28,7 +29,7 @@ parser = argparse.ArgumentParser(description="Generate forwarding gaits at custo
 parser.add_argument("-o", "--output", type=str, help="output path", default="outputs")
 parser.add_argument("-t", "--type", type=str, help="motion type in wiki", default="walk")
 parser.add_argument("-s", "--startup", action='store_true', help="whether use startup second")
-parser.add_argument("-n", "--sample_num", type=int, default=10, help="trajectory sample number")
+parser.add_argument("-n", "--sample_num", type=int, default=1, help="trajectory sample number")
 args = parser.parse_args()
 
 if not os.path.exists(args.output):

@@ -14,8 +14,15 @@ STYLE_LAY = np.array([0, 0, 0, 0, 0, 1])
 
 NUM_STYLES = 6
 SYS_FREQ = 60
-DURATION = 9
+DURATION = 10
+START_UP_DURATION = .1
 
 NUM_QUERIES = SYS_FREQ * DURATION
 
 MOCAP_SAMPLE_PATH = "animation/data/mocap-sample.txt"
+
+
+def set_duration(use_startup):
+    global DURATION
+    DURATION -= START_UP_DURATION
+    NUM_QUERIES = SYS_FREQ * DURATION
